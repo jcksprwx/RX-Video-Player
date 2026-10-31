@@ -12,6 +12,8 @@ SetCompressor /SOLID lzma
 
 ; MUI Settings
 !define MUI_ABORTWARNING
+!define MUI_ICON "..\assets\icons\app_icon.ico"
+!define MUI_UNICON "..\assets\icons\app_icon.ico"
 
 ; Pages
 !insertmacro MUI_PAGE_WELCOME

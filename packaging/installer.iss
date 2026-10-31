@@ -22,6 +22,7 @@ OutputDir=..\dist_installer
 OutputBaseFilename=RX_Media_Player_Setup_x64
 Compression=lzma2/ultra64
 SolidCompression=yes
+SetupIconFile=..\assets\icons\app_icon.ico
 WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible

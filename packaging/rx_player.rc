@@ -1,5 +1,8 @@
 #include <windows.h>
 
+// Application Icon
+1 ICON "app_icon.ico"
+
 // Application Manifest
 1 RT_MANIFEST "rx_player.manifest"
 

@@ -51,6 +51,8 @@ bool RXMainWindow::create(HINSTANCE hInstance, int nCmdShow) {
     wc.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
     wc.lpfnWndProc = RXMainWindow::mainWndProc;
     wc.hInstance = hInstance;
+    wc.hIcon = (HICON)LoadImageW(hInstance, MAKEINTRESOURCEW(1), IMAGE_ICON, 32, 32, LR_DEFAULTCOLOR);
+    wc.hIconSm = (HICON)LoadImageW(hInstance, MAKEINTRESOURCEW(1), IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wc.hbrBackground = CreateSolidBrush(theme::kBgColor);
     wc.lpszClassName = kMainClassName;
@@ -104,6 +106,13 @@ bool RXMainWindow::create(HINSTANCE hInstance, int nCmdShow) {
     }
 
     theme::enableImmersiveDarkMode(m_mainHwnd);
+
+    if (wc.hIcon) {
+        SendMessageW(m_mainHwnd, WM_SETICON, ICON_BIG, (LPARAM)wc.hIcon);
+    }
+    if (wc.hIconSm) {
+        SendMessageW(m_mainHwnd, WM_SETICON, ICON_SMALL, (LPARAM)wc.hIconSm);
+    }
 
     // Create Video Viewport Child Window
     m_videoHwnd = CreateWindowExW(
