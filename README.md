@@ -17,6 +17,33 @@
 
 ---
 
+## 📖 About RX Media Player
+
+**RX Media Player** is a next-generation desktop multimedia player designed and engineered by **Rituraj**. Built specifically for 64-bit Windows 10 and Windows 11, it combines the responsiveness and low footprint of native **C++20** with high-fidelity Direct3D 11 video rendering, studio-grade WASAPI audio processing, and an embedded SQLite 3 media library.
+
+### 🎯 Purpose & Philosophy
+Legacy Windows media players are often cluttered with outdated interfaces, sluggish file opening, or unmaintained codecs, while modern alternatives frequently rely on bloated web wrappers (Electron/Chromium) that consume hundreds of megabytes of RAM just to idle.
+
+**RX Media Player** was built with a clear philosophy:
+1. **True Native Performance:** Zero web wrappers, zero managed runtime overhead. Written in pure C++20 utilizing direct Win32 and DirectX 11 APIs for sub-second startup times and microsecond seek latency.
+2. **Audio-Visual Precision:** Full GPU hardware decoding (D3D11VA and DXVA2) with Direct3D 11 swap chain presentation alongside bit-perfect WASAPI audio with an ISO 10-band equalizer.
+3. **Local-First & Privacy Conscious:** All playback history, resume points, and scene bookmarks are stored locally on your machine in an embedded SQLite 3 database. Zero telemetry, zero analytics, zero network tracking.
+4. **Cinematic Aesthetic:** A purpose-built dark-charcoal visual theme with warm gold accents, high-DPI scaling, smooth auto-hiding controls, and a distraction-free viewing experience.
+
+### 🏛️ Architecture Overview
+
+| Subsystem | Technology | Purpose & Capabilities |
+| :--- | :--- | :--- |
+| **Core Architecture** | **ISO C++20** & Win32 API | Native memory safety, instant launch, lightweight ~80 MB idle footprint |
+| **Video Engine** | **Direct3D 11** & `libmpv` | Tear-free GPU presentation, D3D11VA/DXVA2 hardware decoding for 4K 60fps & 8K HDR |
+| **Audio Engine** | **WASAPI** (Exclusive & Shared) | Low-latency audio streaming, bit-perfect DAC pass-through, dynamic device switching |
+| **Audio Processing** | 10-Band Graphic Equalizer | Studio sound shaping (31 Hz – 16 kHz), loudness normalization (`dynaudnorm`), bass & treble controls |
+| **Subtitle Engine** | Embedded & External (SRT, ASS, VTT) | Real-time millisecond sync adjustment, custom font rendering, outline & shadow styling |
+| **Data Persistence** | **SQLite 3.49** Amalgamation | Local playback resume timestamps, scene bookmarks, watched folders, zero server dependency |
+| **Installer & Packaging** | NSIS 3.x & Inno Setup 6 | Clean 34.8 MB standalone installer with Windows Start Menu and desktop shortcuts |
+
+---
+
 ## ✨ Features at a Glance
 
 ### 🎬 Universal Media Playback & Hardware Acceleration
