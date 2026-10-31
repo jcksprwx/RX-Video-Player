@@ -9,6 +9,7 @@
 #include "dialogs/sub_dialog.hpp"
 #include "dialogs/open_url_dialog.hpp"
 #include "dialogs/bookmark_dialog.hpp"
+#include "dialogs/preferences_dialog.hpp"
 #include "../engine/mpv_backend.hpp"
 #include "../playlist/playlist_manager.hpp"
 #include <windows.h>
@@ -52,6 +53,13 @@ private:
     void toggleVideoPanel();
     void toggleAudioPanel();
     void showInfoDialog();
+    void showPreferencesDialog();
+    void showAboutDialog();
+    void showContextMenu(int screenX, int screenY);
+    void toggleCompactMode();
+    void toggleAlwaysOnTop();
+    void cyclePlaybackSpeed();
+    void drawEmptyState(HDC hdc, const RECT& rc);
     void toggleMute();
     void updateTimeDisplay(double posSec, double durSec);
     void showOsdMessage(const std::wstring& msg, int durationMs = 2000);
@@ -74,6 +82,7 @@ private:
     RXIconButton m_btnPrev;
     RXIconButton m_btnNext;
     RXIconButton m_btnMute;
+    RXIconButton m_btnSpeed;
     RXIconButton m_btnSubtitles;
     RXIconButton m_btnHwdec;
     RXIconButton m_btnVideoAdjust;
@@ -93,9 +102,12 @@ private:
     std::unique_ptr<RXSubtitleDialog> m_subDialog;
     std::unique_ptr<RXOpenUrlDialog> m_urlDialog;
     std::unique_ptr<RXBookmarkDialog> m_bmDialog;
+    std::unique_ptr<RXPreferencesDialog> m_prefsDialog;
 
     // State
     bool m_isFullscreen = false;
+    bool m_isCompactMode = false;
+    bool m_alwaysOnTop = false;
     WINDOWPLACEMENT m_prevPlacement{};
     bool m_controlsHidden = false;
     UINT_PTR m_autoHideTimerId = 0;
@@ -103,6 +115,20 @@ private:
     UINT_PTR m_osdTimerId = 0;
     HFONT m_uiFont = nullptr;
     HFONT m_osdFont = nullptr;
+    HFONT m_brandFont = nullptr;
+    HFONT m_brandSubFont = nullptr;
+    HFONT m_recentFont = nullptr;
+    HICON m_hBrandIcon = nullptr;
+
+    // Empty state interactive regions
+    RECT m_rcEmptyOpenFile{};
+    RECT m_rcEmptyOpenFolder{};
+    RECT m_rcEmptyOpenUrl{};
+    std::vector<std::pair<RECT, std::string>> m_recentItemRects;
+    int m_hoveredRecentIdx = -1;
+    bool m_hoveringOpenFile = false;
+    bool m_hoveringOpenFolder = false;
+    bool m_hoveringOpenUrl = false;
 };
 
 } // namespace rx::ui

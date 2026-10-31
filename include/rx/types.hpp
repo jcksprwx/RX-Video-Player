@@ -7,6 +7,10 @@
 
 namespace rx {
 
+inline constexpr const char* kAppVersion = "2.0.1";
+inline constexpr const char* kAppAuthor  = "Rituraj";
+inline constexpr const char* kAppName    = "RX Media Player";
+
 enum class PlaybackState {
     Idle,
     Opening,
@@ -160,7 +164,8 @@ struct DiagnosticsReport {
     std::string formatReport() const {
         std::ostringstream ss;
         ss << "==================================================\n";
-        ss << "          RX MEDIA PLAYER DIAGNOSTIC REPORT       \n";
+        ss << "  " << kAppName << " v" << kAppVersion << " Diagnostic Report\n";
+        ss << "  Author: " << kAppAuthor << "\n";
         ss << "==================================================\n\n";
         ss << "[File Information]\n";
         ss << "  File: " << filename << "\n";

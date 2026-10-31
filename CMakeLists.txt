@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(RXMediaPlayer
-    VERSION 1.0.0
-    DESCRIPTION "RX Media Player - Native Windows 64-bit Multimedia Player"
+    VERSION 2.0.1
+    DESCRIPTION "RX Media Player - Native Windows 64-bit Multimedia Player by Rituraj"
     LANGUAGES C CXX
 )
 
@@ -46,6 +46,7 @@ set(RX_UI_SOURCES
     src/ui/dialogs/sub_dialog.cpp
     src/ui/dialogs/open_url_dialog.cpp
     src/ui/dialogs/bookmark_dialog.cpp
+    src/ui/dialogs/preferences_dialog.cpp
     src/ui/main_window.cpp
 )
 

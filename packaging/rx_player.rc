@@ -8,8 +8,8 @@
 
 // Version Information
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION     1,0,0,0
-PRODUCTVERSION  1,0,0,0
+FILEVERSION     2,0,1,0
+PRODUCTVERSION  2,0,1,0
 FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
 FILEFLAGS       0
 FILEOS          VOS_NT_WINDOWS32
@@ -20,14 +20,14 @@ BEGIN
     BEGIN
         BLOCK "040904B0"
         BEGIN
-            VALUE "CompanyName",      "RX Media Team\0"
+            VALUE "CompanyName",      "Rituraj\0"
             VALUE "FileDescription",  "RX Media Player\0"
-            VALUE "FileVersion",      "1.0.0.0\0"
+            VALUE "FileVersion",      "2.0.1.0\0"
             VALUE "InternalName",     "rx_player\0"
-            VALUE "LegalCopyright",   "Copyright (c) 2026 RX Media Player. Open Source.\0"
+            VALUE "LegalCopyright",   "Copyright (c) 2026 Rituraj. All rights reserved.\0"
             VALUE "OriginalFilename", "rx_player.exe\0"
             VALUE "ProductName",      "RX Media Player\0"
-            VALUE "ProductVersion",   "1.0.0.0\0"
+            VALUE "ProductVersion",   "2.0.1.0\0"
         END
     END
     BLOCK "VarFileInfo"

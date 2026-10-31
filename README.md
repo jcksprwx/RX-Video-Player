@@ -1,12 +1,18 @@
 # RX Media Player
 
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(64--bit)-0078D6?style=flat-square&logo=windows)](https://microsoft.com/windows)
+[![Version: 2.0.1](https://img.shields.io/badge/Version-2.0.1-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.0.1)
+[![Author: Rituraj](https://img.shields.io/badge/Author-Rituraj-blueviolet?style=flat-square)](https://github.com/jcksprwx)
 [![C++: 20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=c%2B%2B)](https://en.cppreference.com/w/cpp/20)
 [![Rendering: Direct3D 11](https://img.shields.io/badge/Renderer-Direct3D%2011-5C2D91?style=flat-square)](https://learn.microsoft.com/windows/win32/direct3d11/)
 [![Audio: WASAPI](https://img.shields.io/badge/Audio-WASAPI%20%7C%20Exclusive-008080?style=flat-square)](https://learn.microsoft.com/windows/win32/coreaudio/)
 [![Database: SQLite 3](https://img.shields.io/badge/Storage-SQLite%203.49-003B57?style=flat-square&logo=sqlite)](https://sqlite.org/)
 
-**RX Media Player** is a high-performance, production-grade native desktop multimedia player built specifically for 64-bit Windows 10 and Windows 11. Engineered from the ground up in modern **C++20**, it delivers hardware-accelerated Direct3D 11 video presentation, bit-perfect WASAPI audio rendering, an embedded SQLite 3 media library, and an immersive dark-charcoal interface.
+<p align="center">
+  <img src="assets/icons/app_icon.png" width="130" alt="RX Media Player Logo" />
+</p>
+
+**RX Media Player** is a high-performance, production-grade native desktop multimedia player built specifically for 64-bit Windows 10 and Windows 11 by **Rituraj**. Engineered from the ground up in modern **C++20**, it delivers hardware-accelerated Direct3D 11 video presentation, bit-perfect WASAPI audio rendering, an embedded SQLite 3 media library, and an immersive dark-charcoal interface.
 
 ---
 
@@ -167,6 +173,7 @@ RX-Video-Player/
 │       │   ├── bookmark_dialog.hpp/.cpp # Scene bookmarks manager
 │       │   ├── info_dialog.hpp/.cpp     # Diagnostics telemetry dialog
 │       │   ├── open_url_dialog.hpp/.cpp # Network streaming dialog
+│       │   ├── preferences_dialog.hpp/.cpp # Searchable categorized preferences dialog
 │       │   └── sub_dialog.hpp/.cpp      # Subtitle styling customizer dialog
 │       └── panels/
 │           ├── audio_panel.hpp/.cpp     # Dockable audio & equalizer panel
@@ -185,6 +192,7 @@ RX-Video-Player/
 
 ## ⚖️ License & Acknowledgments
 
+- **Author & Architect:** Designed and engineered by **Rituraj**.
 - **RX Media Player** source code is licensed under the MIT License.
 - **Multimedia Engine:** Powered by `libmpv` and FFmpeg libraries, dynamically linked under the terms of the GNU Lesser General Public License (LGPL v2.1+).
 - **Database Engine:** Embedded SQLite is in the public domain.

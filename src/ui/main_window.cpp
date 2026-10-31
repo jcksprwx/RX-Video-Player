@@ -32,12 +32,67 @@ constexpr UINT IDC_MAIN_SEEKBAR    = 3010;
 constexpr UINT IDC_MAIN_VIDEO_ADJUST = 3011;
 constexpr UINT IDC_MAIN_INFO       = 3012;
 constexpr UINT IDC_MAIN_AUDIO_PANEL = 3013;
+constexpr UINT IDC_MAIN_SPEED       = 3014;
+
+// Context Menu Command IDs
+constexpr UINT IDM_OPEN_FILE         = 9001;
+constexpr UINT IDM_OPEN_FOLDER       = 9002;
+constexpr UINT IDM_OPEN_URL          = 9003;
+constexpr UINT IDM_PLAY_PAUSE        = 9004;
+constexpr UINT IDM_STOP              = 9005;
+constexpr UINT IDM_PREV_TRACK        = 9006;
+constexpr UINT IDM_NEXT_TRACK        = 9007;
+constexpr UINT IDM_SPEED_050         = 9010;
+constexpr UINT IDM_SPEED_075         = 9011;
+constexpr UINT IDM_SPEED_100         = 9012;
+constexpr UINT IDM_SPEED_125         = 9013;
+constexpr UINT IDM_SPEED_150         = 9014;
+constexpr UINT IDM_SPEED_200         = 9015;
+constexpr UINT IDM_REPEAT_OFF        = 9020;
+constexpr UINT IDM_REPEAT_ALL        = 9021;
+constexpr UINT IDM_REPEAT_ONE        = 9022;
+constexpr UINT IDM_SEEK_FWD_5        = 9030;
+constexpr UINT IDM_SEEK_BACK_5       = 9031;
+constexpr UINT IDM_SEEK_FWD_30       = 9032;
+constexpr UINT IDM_SEEK_BACK_30      = 9033;
+constexpr UINT IDM_BOOKMARKS         = 9034;
+constexpr UINT IDM_ADD_BOOKMARK      = 9035;
+constexpr UINT IDM_AUDIO_EQUALIZER   = 9040;
+constexpr UINT IDM_MUTE              = 9041;
+constexpr UINT IDM_VOL_UP            = 9042;
+constexpr UINT IDM_VOL_DOWN          = 9043;
+constexpr UINT IDM_VIDEO_ADJUST      = 9050;
+constexpr UINT IDM_ASPECT_AUTO       = 9051;
+constexpr UINT IDM_ASPECT_16_9       = 9052;
+constexpr UINT IDM_ASPECT_4_3        = 9053;
+constexpr UINT IDM_ASPECT_21_9       = 9054;
+constexpr UINT IDM_ROTATE_90         = 9055;
+constexpr UINT IDM_FLIP_HORZ         = 9056;
+constexpr UINT IDM_FLIP_VERT         = 9057;
+constexpr UINT IDM_HWDEC_TOGGLE      = 9058;
+constexpr UINT IDM_SCREENSHOT        = 9059;
+constexpr UINT IDM_SUBTITLE_SETTINGS = 9060;
+constexpr UINT IDM_SUBTITLE_LOAD     = 9061;
+constexpr UINT IDM_PLAYLIST_TOGGLE   = 9070;
+constexpr UINT IDM_PLAYLIST_SHUFFLE  = 9071;
+constexpr UINT IDM_PLAYLIST_CLEAR    = 9072;
+constexpr UINT IDM_FULLSCREEN        = 9080;
+constexpr UINT IDM_COMPACT_MODE      = 9081;
+constexpr UINT IDM_ALWAYS_ON_TOP     = 9082;
+constexpr UINT IDM_MEDIA_INFO        = 9083;
+constexpr UINT IDM_PREFERENCES       = 9090;
+constexpr UINT IDM_ABOUT             = 9091;
+constexpr UINT IDM_RECENT_BASE       = 9200;
 
 RXMainWindow::RXMainWindow() = default;
 
 RXMainWindow::~RXMainWindow() {
     if (m_uiFont) DeleteObject(m_uiFont);
     if (m_osdFont) DeleteObject(m_osdFont);
+    if (m_brandFont) DeleteObject(m_brandFont);
+    if (m_brandSubFont) DeleteObject(m_brandSubFont);
+    if (m_recentFont) DeleteObject(m_recentFont);
+    if (m_hBrandIcon) DestroyIcon(m_hBrandIcon);
     m_engine.shutdown();
 }
 
@@ -85,6 +140,20 @@ bool RXMainWindow::create(HINSTANCE hInstance, int nCmdShow) {
     m_osdFont = CreateFontW(-24, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
                             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
                             CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+
+    m_brandFont = CreateFontW(-22, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+                              DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                              CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+
+    m_brandSubFont = CreateFontW(-12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+                                 DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                                 CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+
+    m_recentFont = CreateFontW(-13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+                               DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                               CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+
+    m_hBrandIcon = (HICON)LoadImageW(hInstance, MAKEINTRESOURCEW(1), IMAGE_ICON, 96, 96, LR_DEFAULTCOLOR);
 
     // Create Main Window
     int wx = settings.window.x;
@@ -365,11 +434,16 @@ void RXMainWindow::setupChildControls() {
         toggleMute();
     });
 
+    m_btnSpeed.create(m_controlBarHwnd, 212, 20, 48, 36, L"1.0x", IDC_MAIN_SPEED, L"Playback Speed (Click to cycle)");
+    m_btnSpeed.setCallback([this]() {
+        cyclePlaybackSpeed();
+    });
+
     // Time Label
     m_lblTime = CreateWindowExW(
         0, L"STATIC", L"00:00 / 00:00",
         WS_CHILD | WS_VISIBLE | SS_CENTERIMAGE,
-        215, 20, 140, 36,
+        265, 20, 140, 36,
         m_controlBarHwnd, nullptr, hInst, nullptr
     );
     SendMessageW(m_lblTime, WM_SETFONT, (WPARAM)m_uiFont, TRUE);
@@ -473,7 +547,8 @@ void RXMainWindow::layoutControls() {
     m_btnPrev.move(92, 20, 36, 36);
     m_btnNext.move(132, 20, 36, 36);
     m_btnMute.move(172, 20, 36, 36);
-    MoveWindow(m_lblTime, 215, 20, 130, 36, TRUE);
+    m_btnSpeed.move(212, 20, 48, 36);
+    MoveWindow(m_lblTime, 265, 20, 130, 36, TRUE);
 
     // Right controls aligned to right
     int right = width - 10;
@@ -662,6 +737,328 @@ void RXMainWindow::showInfoDialog() {
     }
 }
 
+void RXMainWindow::showPreferencesDialog() {
+    if (!m_prefsDialog) {
+        m_prefsDialog = std::make_unique<RXPreferencesDialog>();
+    }
+    m_prefsDialog->show(m_mainHwnd);
+}
+
+void RXMainWindow::showAboutDialog() {
+    std::wstring msg =
+        L"RX Media Player v2.0.1 (Windows 64-bit)\n\n"
+        L"Author & Lead Architect: Rituraj\n"
+        L"Repository: https://github.com/jcksprwx/RX-Video-Player\n\n"
+        L"Architecture & Subsystems:\n"
+        L"  • Modern C++20 Core Application\n"
+        L"  • Direct3D 11 GPU Rendering (D3D11VA / DXVA2)\n"
+        L"  • Direct WASAPI Audio with 10-Band Graphic Equalizer\n"
+        L"  • Multimedia Engine: libmpv & FFmpeg Backends\n"
+        L"  • Library & History: Embedded SQLite 3 Database\n\n"
+        L"Engineered for high performance, smooth playback, and precision control.\n"
+        L"Copyright (c) 2026 Rituraj. All rights reserved.";
+
+    MessageBoxW(m_mainHwnd, msg.c_str(), L"About RX Media Player", MB_ICONINFORMATION | MB_OK);
+}
+
+void RXMainWindow::cyclePlaybackSpeed() {
+    double speeds[] = { 1.0, 1.25, 1.5, 2.0, 0.5, 0.75 };
+    double current = m_engine.getSpeed();
+    double nextSpeed = 1.0;
+    for (size_t i = 0; i < 6; ++i) {
+        if (std::abs(current - speeds[i]) < 0.05) {
+            nextSpeed = speeds[(i + 1) % 6];
+            break;
+        }
+    }
+    m_engine.setSpeed(nextSpeed);
+    wchar_t buf[32];
+    swprintf_s(buf, L"%.2gx", nextSpeed);
+    m_btnSpeed.setText(buf);
+    showOsdMessage(L"Speed: " + std::wstring(buf));
+}
+
+void RXMainWindow::toggleCompactMode() {
+    m_isCompactMode = !m_isCompactMode;
+    if (m_isCompactMode) {
+        if (m_playlistPanel) m_playlistPanel->setVisible(false);
+        if (m_videoPanel) m_videoPanel->setVisible(false);
+        if (m_audioPanel) m_audioPanel->setVisible(false);
+
+        RECT rc;
+        GetWindowRect(m_mainHwnd, &rc);
+        SetWindowPos(m_mainHwnd, nullptr, rc.left, rc.top, 580, 360, SWP_NOZORDER);
+        showOsdMessage(L"Compact Mode: Enabled (Ctrl+M to toggle)");
+    } else {
+        RECT rc;
+        GetWindowRect(m_mainHwnd, &rc);
+        SetWindowPos(m_mainHwnd, nullptr, rc.left, rc.top, 1100, 680, SWP_NOZORDER);
+        showOsdMessage(L"Standard Mode");
+    }
+}
+
+void RXMainWindow::toggleAlwaysOnTop() {
+    m_alwaysOnTop = !m_alwaysOnTop;
+    SetWindowPos(m_mainHwnd, m_alwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE);
+    showOsdMessage(m_alwaysOnTop ? L"Always On Top: ON" : L"Always On Top: OFF");
+}
+
+void RXMainWindow::showContextMenu(int screenX, int screenY) {
+    HMENU hMenu = CreatePopupMenu();
+    HMENU hSubOpen = CreatePopupMenu();
+    HMENU hSubPlayback = CreatePopupMenu();
+    HMENU hSubSpeed = CreatePopupMenu();
+    HMENU hSubRepeat = CreatePopupMenu();
+    HMENU hSubNav = CreatePopupMenu();
+    HMENU hSubAudio = CreatePopupMenu();
+    HMENU hSubVideo = CreatePopupMenu();
+    HMENU hSubAspect = CreatePopupMenu();
+    HMENU hSubSubs = CreatePopupMenu();
+    HMENU hSubPlaylist = CreatePopupMenu();
+    HMENU hSubView = CreatePopupMenu();
+    HMENU hSubRecent = CreatePopupMenu();
+
+    // 1. Open Media
+    AppendMenuW(hSubOpen, MF_STRING, IDM_OPEN_FILE, L"Open File...\tCtrl+O");
+    AppendMenuW(hSubOpen, MF_STRING, IDM_OPEN_FOLDER, L"Open Folder...\tCtrl+F");
+    AppendMenuW(hSubOpen, MF_STRING, IDM_OPEN_URL, L"Open Network Stream...\tCtrl+U");
+
+    auto recents = library::MediaDatabase::instance().getRecentHistory(8);
+    if (!recents.empty()) {
+        AppendMenuW(hSubOpen, MF_SEPARATOR, 0, nullptr);
+        for (size_t i = 0; i < recents.size() && i < 8; ++i) {
+            std::wstring itemTitle = rx::utils::utf8ToWide(recents[i].title);
+            AppendMenuW(hSubRecent, MF_STRING, IDM_RECENT_BASE + (UINT)i, itemTitle.c_str());
+        }
+        AppendMenuW(hSubOpen, MF_POPUP, (UINT_PTR)hSubRecent, L"Recent Media");
+    }
+    AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hSubOpen, L"Open Media");
+
+    // 2. Playback
+    bool isPlaying = (m_engine.getState() == PlaybackState::Playing);
+    AppendMenuW(hSubPlayback, MF_STRING, IDM_PLAY_PAUSE, isPlaying ? L"Pause\tSpace" : L"Play\tSpace");
+    AppendMenuW(hSubPlayback, MF_STRING, IDM_STOP, L"Stop");
+    AppendMenuW(hSubPlayback, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(hSubPlayback, MF_STRING, IDM_PREV_TRACK, L"Previous Track\tCtrl+Left");
+    AppendMenuW(hSubPlayback, MF_STRING, IDM_NEXT_TRACK, L"Next Track\tCtrl+Right");
+    AppendMenuW(hSubPlayback, MF_SEPARATOR, 0, nullptr);
+
+    // Speed submenu
+    AppendMenuW(hSubSpeed, MF_STRING, IDM_SPEED_050, L"0.5x");
+    AppendMenuW(hSubSpeed, MF_STRING, IDM_SPEED_075, L"0.75x");
+    AppendMenuW(hSubSpeed, MF_STRING, IDM_SPEED_100, L"1.0x (Normal)");
+    AppendMenuW(hSubSpeed, MF_STRING, IDM_SPEED_125, L"1.25x");
+    AppendMenuW(hSubSpeed, MF_STRING, IDM_SPEED_150, L"1.5x");
+    AppendMenuW(hSubSpeed, MF_STRING, IDM_SPEED_200, L"2.0x");
+    AppendMenuW(hSubPlayback, MF_POPUP, (UINT_PTR)hSubSpeed, L"Playback Speed");
+
+    // Repeat submenu
+    AppendMenuW(hSubRepeat, MF_STRING, IDM_REPEAT_OFF, L"Off");
+    AppendMenuW(hSubRepeat, MF_STRING, IDM_REPEAT_ALL, L"Repeat All");
+    AppendMenuW(hSubRepeat, MF_STRING, IDM_REPEAT_ONE, L"Repeat Current");
+    AppendMenuW(hSubPlayback, MF_POPUP, (UINT_PTR)hSubRepeat, L"Repeat Mode");
+    AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hSubPlayback, L"Playback");
+
+    // 3. Navigation
+    AppendMenuW(hSubNav, MF_STRING, IDM_SEEK_FWD_5, L"Jump Forward 5s\tRight");
+    AppendMenuW(hSubNav, MF_STRING, IDM_SEEK_BACK_5, L"Jump Backward 5s\tLeft");
+    AppendMenuW(hSubNav, MF_STRING, IDM_SEEK_FWD_30, L"Jump Forward 30s\tShift+Right");
+    AppendMenuW(hSubNav, MF_STRING, IDM_SEEK_BACK_30, L"Jump Backward 30s\tShift+Left");
+    AppendMenuW(hSubNav, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(hSubNav, MF_STRING, IDM_BOOKMARKS, L"Scene Bookmarks...\tB");
+    AppendMenuW(hSubNav, MF_STRING, IDM_ADD_BOOKMARK, L"Add Quick Bookmark\tCtrl+B");
+    AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hSubNav, L"Navigation");
+
+    // 4. Audio
+    AppendMenuW(hSubAudio, MF_STRING, IDM_AUDIO_EQUALIZER, L"10-Band Equalizer & WASAPI...\tA");
+    AppendMenuW(hSubAudio, MF_STRING, IDM_MUTE, m_engine.isMuted() ? L"Unmute\tM" : L"Mute\tM");
+    AppendMenuW(hSubAudio, MF_STRING, IDM_VOL_UP, L"Volume Up (5%)\tUp");
+    AppendMenuW(hSubAudio, MF_STRING, IDM_VOL_DOWN, L"Volume Down (5%)\tDown");
+    AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hSubAudio, L"Audio");
+
+    // 5. Video
+    AppendMenuW(hSubVideo, MF_STRING, IDM_VIDEO_ADJUST, L"Picture Adjustments...\tV");
+    AppendMenuW(hSubAspect, MF_STRING, IDM_ASPECT_AUTO, L"Auto / Original");
+    AppendMenuW(hSubAspect, MF_STRING, IDM_ASPECT_16_9, L"16:9 Widescreen");
+    AppendMenuW(hSubAspect, MF_STRING, IDM_ASPECT_4_3, L"4:3 Standard");
+    AppendMenuW(hSubAspect, MF_STRING, IDM_ASPECT_21_9, L"21:9 Cinemascope");
+    AppendMenuW(hSubVideo, MF_POPUP, (UINT_PTR)hSubAspect, L"Aspect Ratio");
+    AppendMenuW(hSubVideo, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(hSubVideo, MF_STRING, IDM_ROTATE_90, L"Rotate 90° Clockwise");
+    AppendMenuW(hSubVideo, MF_STRING, IDM_FLIP_HORZ, L"Flip Horizontal");
+    AppendMenuW(hSubVideo, MF_STRING, IDM_FLIP_VERT, L"Flip Vertical");
+    AppendMenuW(hSubVideo, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(hSubVideo, MF_STRING, IDM_HWDEC_TOGGLE, (m_engine.getActiveHwdec() != "no") ? L"Disable Hardware Decoding\tH" : L"Enable Hardware Decoding\tH");
+    AppendMenuW(hSubVideo, MF_STRING, IDM_SCREENSHOT, L"Take Screenshot\tS");
+    AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hSubVideo, L"Video");
+
+    // 6. Subtitles
+    AppendMenuW(hSubSubs, MF_STRING, IDM_SUBTITLE_SETTINGS, L"Subtitle Explorer & Sync...\tCtrl+S");
+    AppendMenuW(hSubSubs, MF_STRING, IDM_SUBTITLE_LOAD, L"Load External Subtitle File...");
+    AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hSubSubs, L"Subtitles");
+
+    // 7. Playlist
+    AppendMenuW(hSubPlaylist, MF_STRING, IDM_PLAYLIST_TOGGLE, L"Toggle Playlist Panel\tP");
+    AppendMenuW(hSubPlaylist, MF_STRING, IDM_PLAYLIST_SHUFFLE, L"Shuffle Playlist");
+    AppendMenuW(hSubPlaylist, MF_STRING, IDM_PLAYLIST_CLEAR, L"Clear Playlist");
+    AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hSubPlaylist, L"Playlist");
+
+    // 8. View
+    AppendMenuW(hSubView, MF_STRING, IDM_FULLSCREEN, m_isFullscreen ? L"Exit Fullscreen\tF / Esc" : L"Enter Fullscreen\tF / F11");
+    AppendMenuW(hSubView, MF_STRING, IDM_COMPACT_MODE, m_isCompactMode ? L"Standard Window Mode\tCtrl+M" : L"Compact Mini Mode\tCtrl+M");
+    AppendMenuW(hSubView, MF_STRING, IDM_ALWAYS_ON_TOP, m_alwaysOnTop ? L"Always On Top [Enabled]\tCtrl+T" : L"Always On Top [Disabled]\tCtrl+T");
+    AppendMenuW(hSubView, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(hSubView, MF_STRING, IDM_MEDIA_INFO, L"Media Information & Diagnostics...\tCtrl+I");
+    AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hSubView, L"View");
+
+    AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(hMenu, MF_STRING, IDM_PREFERENCES, L"Preferences...\tCtrl+P");
+    AppendMenuW(hMenu, MF_STRING, IDM_ABOUT, L"About RX Media Player...");
+
+    TrackPopupMenuEx(hMenu, TPM_LEFTALIGN | TPM_RIGHTBUTTON, screenX, screenY, m_mainHwnd, nullptr);
+    DestroyMenu(hMenu);
+}
+
+void RXMainWindow::drawEmptyState(HDC hdc, const RECT& rc) {
+    int w = rc.right - rc.left;
+    int h = rc.bottom - rc.top;
+    if (w <= 0 || h <= 0) return;
+
+    // Double buffering for smooth, flicker-free rendering
+    HDC memDC = CreateCompatibleDC(hdc);
+    HBITMAP memBmp = CreateCompatibleBitmap(hdc, w, h);
+    HBITMAP oldBmp = (HBITMAP)SelectObject(memDC, memBmp);
+
+    // Deep cinematic background #121316
+    HBRUSH bgBrush = CreateSolidBrush(RGB(18, 19, 22));
+    FillRect(memDC, &rc, bgBrush);
+    DeleteObject(bgBrush);
+
+    int cx = w / 2;
+    int cy = h / 2;
+
+    int logoY = cy - 140;
+
+    // 1. Subtle abstract concentric rings motif
+    HPEN ringPen1 = CreatePen(PS_SOLID, 1, RGB(35, 38, 45));
+    HPEN ringPen2 = CreatePen(PS_SOLID, 1, RGB(48, 52, 62));
+    HPEN oldPen = (HPEN)SelectObject(memDC, ringPen1);
+    HBRUSH nullBrush = (HBRUSH)GetStockObject(NULL_BRUSH);
+    HBRUSH oldBrush = (HBRUSH)SelectObject(memDC, nullBrush);
+
+    Ellipse(memDC, cx - 110, logoY + 48 - 110, cx + 110, logoY + 48 + 110);
+    SelectObject(memDC, ringPen2);
+    Ellipse(memDC, cx - 75, logoY + 48 - 75, cx + 75, logoY + 48 + 75);
+
+    // 2. RX Brand Icon (96x96)
+    if (m_hBrandIcon) {
+        DrawIconEx(memDC, cx - 48, logoY, m_hBrandIcon, 96, 96, 0, nullptr, DI_NORMAL);
+    }
+
+    // 3. Brand Title & Subtitle
+    SetBkMode(memDC, TRANSPARENT);
+    SetTextColor(memDC, theme::kTextPrimary);
+    SelectObject(memDC, m_brandFont);
+
+    RECT rcTitle{ cx - 250, logoY + 105, cx + 250, logoY + 140 };
+    DrawTextW(memDC, L"RX MEDIA PLAYER", -1, &rcTitle, DT_CENTER | DT_SINGLELINE);
+
+    SetTextColor(memDC, theme::kTextMuted);
+    SelectObject(memDC, m_brandSubFont);
+    RECT rcSub{ cx - 250, logoY + 142, cx + 250, logoY + 165 };
+    DrawTextW(memDC, L"Version 2.0.1  •  Engineered by Rituraj", -1, &rcSub, DT_CENTER | DT_SINGLELINE);
+
+    // 4. Interactive Quick Action Buttons
+    int btnY = logoY + 180;
+    int btnW = 125;
+    int btnH = 34;
+    int spacing = 14;
+    int totalBtnsW = (btnW * 3) + (spacing * 2);
+    int startBtnX = cx - (totalBtnsW / 2);
+
+    m_rcEmptyOpenFile = { startBtnX, btnY, startBtnX + btnW, btnY + btnH };
+    m_rcEmptyOpenFolder = { startBtnX + btnW + spacing, btnY, startBtnX + (btnW * 2) + spacing, btnY + btnH };
+    m_rcEmptyOpenUrl = { startBtnX + (btnW * 2) + (spacing * 2), btnY, startBtnX + (btnW * 3) + (spacing * 2), btnY + btnH };
+
+    auto drawPill = [&](const RECT& r, const wchar_t* label, bool hovered) {
+        HBRUSH pillBrush = CreateSolidBrush(hovered ? RGB(45, 50, 65) : RGB(28, 30, 36));
+        HPEN pillPen = CreatePen(PS_SOLID, 1, hovered ? RGB(218, 165, 32) : RGB(55, 60, 70));
+        SelectObject(memDC, pillBrush);
+        SelectObject(memDC, pillPen);
+        RoundRect(memDC, r.left, r.top, r.right, r.bottom, 10, 10);
+        DeleteObject(pillBrush);
+        DeleteObject(pillPen);
+
+        SetTextColor(memDC, hovered ? RGB(255, 255, 255) : theme::kTextPrimary);
+        SelectObject(memDC, m_uiFont);
+        RECT textR = r;
+        DrawTextW(memDC, label, -1, &textR, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    };
+
+    drawPill(m_rcEmptyOpenFile, L"📁  Open File", m_hoveringOpenFile);
+    drawPill(m_rcEmptyOpenFolder, L"📂  Open Folder", m_hoveringOpenFolder);
+    drawPill(m_rcEmptyOpenUrl, L"🌐  Open Stream", m_hoveringOpenUrl);
+
+    // 5. Drag & Drop Hint
+    SetTextColor(memDC, RGB(120, 125, 138));
+    RECT rcHint{ cx - 250, btnY + 45, cx + 250, btnY + 65 };
+    DrawTextW(memDC, L"or drag & drop media files anywhere to start playback", -1, &rcHint, DT_CENTER | DT_SINGLELINE);
+
+    // 6. Recent Media from SQLite Database
+    auto recents = library::MediaDatabase::instance().getRecentHistory(4);
+    m_recentItemRects.clear();
+
+    if (!recents.empty() && h > 480) {
+        int recY = btnY + 75;
+
+        HPEN sepPen = CreatePen(PS_SOLID, 1, RGB(40, 44, 52));
+        SelectObject(memDC, sepPen);
+        MoveToEx(memDC, cx - 180, recY, nullptr);
+        LineTo(memDC, cx + 180, recY);
+        DeleteObject(sepPen);
+
+        recY += 12;
+        SetTextColor(memDC, RGB(160, 165, 175));
+        SelectObject(memDC, m_uiFont);
+        RECT rcRecHeader{ cx - 180, recY, cx + 180, recY + 20 };
+        DrawTextW(memDC, L"Recent Media:", -1, &rcRecHeader, DT_LEFT | DT_SINGLELINE);
+
+        recY += 24;
+        SelectObject(memDC, m_recentFont);
+
+        for (size_t i = 0; i < recents.size() && i < 4; ++i) {
+            RECT itemR{ cx - 180, recY, cx + 180, recY + 24 };
+            m_recentItemRects.push_back({ itemR, recents[i].filePath });
+
+            bool isHov = ((int)i == m_hoveredRecentIdx);
+            if (isHov) {
+                HBRUSH itemBg = CreateSolidBrush(RGB(35, 42, 56));
+                FillRect(memDC, &itemR, itemBg);
+                DeleteObject(itemBg);
+            }
+
+            SetTextColor(memDC, isHov ? RGB(255, 255, 255) : RGB(190, 195, 205));
+            std::wstring line = L"▶  " + rx::utils::utf8ToWide(recents[i].title);
+            RECT textR{ itemR.left + 8, itemR.top, itemR.right - 8, itemR.bottom };
+            DrawTextW(memDC, line.c_str(), -1, &textR, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+
+            recY += 26;
+        }
+    }
+
+    SelectObject(memDC, oldPen);
+    SelectObject(memDC, oldBrush);
+    DeleteObject(ringPen1);
+    DeleteObject(ringPen2);
+
+    BitBlt(hdc, 0, 0, w, h, memDC, 0, 0, SRCCOPY);
+
+    SelectObject(memDC, oldBmp);
+    DeleteObject(memBmp);
+    DeleteDC(memDC);
+}
+
 void RXMainWindow::toggleMute() {
     bool mute = !m_engine.isMuted();
     m_engine.setMute(mute);
@@ -741,9 +1138,24 @@ void RXMainWindow::onKeyDown(WPARAM key) {
             break;
         }
         case 'M':
-            toggleMute();
+            if (GetKeyState(VK_CONTROL) & 0x8000) {
+                toggleCompactMode();
+            } else {
+                toggleMute();
+            }
+            break;
+        case 'T':
+            if (GetKeyState(VK_CONTROL) & 0x8000) {
+                toggleAlwaysOnTop();
+            }
             break;
         case 'F':
+            if (GetKeyState(VK_CONTROL) & 0x8000) {
+                openFolderDialog();
+            } else {
+                toggleFullscreen();
+            }
+            break;
         case VK_F11:
             toggleFullscreen();
             break;
@@ -767,7 +1179,11 @@ void RXMainWindow::onKeyDown(WPARAM key) {
             toggleAudioPanel();
             break;
         case 'P':
-            togglePlaylistPanel();
+            if (GetKeyState(VK_CONTROL) & 0x8000) {
+                showPreferencesDialog();
+            } else {
+                togglePlaylistPanel();
+            }
             break;
         case 'I':
         case VK_TAB:
@@ -846,6 +1262,103 @@ LRESULT CALLBACK RXMainWindow::mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, L
             case WM_KEYDOWN:
                 pThis->onKeyDown(wParam);
                 return 0;
+            case WM_COMMAND: {
+                WORD id = LOWORD(wParam);
+                if (id >= IDM_RECENT_BASE && id < IDM_RECENT_BASE + 20) {
+                    auto recents = library::MediaDatabase::instance().getRecentHistory(8);
+                    size_t idx = id - IDM_RECENT_BASE;
+                    if (idx < recents.size()) {
+                        pThis->openFile(recents[idx].filePath);
+                    }
+                    return 0;
+                }
+
+                switch (id) {
+                    case IDM_OPEN_FILE:         pThis->openFileDialog(); break;
+                    case IDM_OPEN_FOLDER:       pThis->openFolderDialog(); break;
+                    case IDM_OPEN_URL:          pThis->openUrlDialog(); break;
+                    case IDM_PLAY_PAUSE:        pThis->m_engine.togglePause(); break;
+                    case IDM_STOP:              pThis->m_engine.stop(); pThis->m_btnPlay.setText(L"►"); if (pThis->m_videoHwnd) InvalidateRect(pThis->m_videoHwnd, nullptr, TRUE); break;
+                    case IDM_PREV_TRACK: {
+                        auto prevItem = pThis->m_playlistMgr.previous();
+                        if (prevItem) {
+                            pThis->m_engine.loadFile(prevItem->path, true);
+                            pThis->m_playlistPanel->refresh();
+                        }
+                        break;
+                    }
+                    case IDM_NEXT_TRACK: {
+                        auto nextItem = pThis->m_playlistMgr.next(true);
+                        if (nextItem) {
+                            pThis->m_engine.loadFile(nextItem->path, true);
+                            pThis->m_playlistPanel->refresh();
+                        }
+                        break;
+                    }
+                    case IDM_SPEED_050:         pThis->m_engine.setSpeed(0.5); pThis->m_btnSpeed.setText(L"0.5x"); pThis->showOsdMessage(L"Speed: 0.5x"); break;
+                    case IDM_SPEED_075:         pThis->m_engine.setSpeed(0.75); pThis->m_btnSpeed.setText(L"0.75x"); pThis->showOsdMessage(L"Speed: 0.75x"); break;
+                    case IDM_SPEED_100:         pThis->m_engine.setSpeed(1.0); pThis->m_btnSpeed.setText(L"1.0x"); pThis->showOsdMessage(L"Speed: 1.0x (Normal)"); break;
+                    case IDM_SPEED_125:         pThis->m_engine.setSpeed(1.25); pThis->m_btnSpeed.setText(L"1.25x"); pThis->showOsdMessage(L"Speed: 1.25x"); break;
+                    case IDM_SPEED_150:         pThis->m_engine.setSpeed(1.5); pThis->m_btnSpeed.setText(L"1.5x"); pThis->showOsdMessage(L"Speed: 1.5x"); break;
+                    case IDM_SPEED_200:         pThis->m_engine.setSpeed(2.0); pThis->m_btnSpeed.setText(L"2.0x"); pThis->showOsdMessage(L"Speed: 2.0x"); break;
+                    case IDM_REPEAT_OFF:        pThis->m_playlistMgr.setRepeatMode(RepeatMode::Off); pThis->showOsdMessage(L"Repeat: Off"); break;
+                    case IDM_REPEAT_ALL:        pThis->m_playlistMgr.setRepeatMode(RepeatMode::RepeatAll); pThis->showOsdMessage(L"Repeat: All"); break;
+                    case IDM_REPEAT_ONE:        pThis->m_playlistMgr.setRepeatMode(RepeatMode::RepeatOne); pThis->showOsdMessage(L"Repeat: Single"); break;
+                    case IDM_SEEK_FWD_5:        pThis->m_engine.seekRelative(5.0); break;
+                    case IDM_SEEK_BACK_5:       pThis->m_engine.seekRelative(-5.0); break;
+                    case IDM_SEEK_FWD_30:       pThis->m_engine.seekRelative(30.0); break;
+                    case IDM_SEEK_BACK_30:      pThis->m_engine.seekRelative(-30.0); break;
+                    case IDM_BOOKMARKS:         pThis->openBookmarkDialog(); break;
+                    case IDM_ADD_BOOKMARK:      pThis->addQuickBookmark(); break;
+                    case IDM_AUDIO_EQUALIZER:   pThis->toggleAudioPanel(); break;
+                    case IDM_MUTE:              pThis->toggleMute(); break;
+                    case IDM_VOL_UP:            pThis->m_engine.setVolume(rx::utils::clamp(pThis->m_engine.getVolume() + 5, 0, 100)); pThis->showOsdMessage(L"Volume: " + std::to_wstring(pThis->m_engine.getVolume()) + L"%"); break;
+                    case IDM_VOL_DOWN:          pThis->m_engine.setVolume(rx::utils::clamp(pThis->m_engine.getVolume() - 5, 0, 100)); pThis->showOsdMessage(L"Volume: " + std::to_wstring(pThis->m_engine.getVolume()) + L"%"); break;
+                    case IDM_VIDEO_ADJUST:      pThis->toggleVideoPanel(); break;
+                    case IDM_ASPECT_AUTO:       pThis->m_engine.setAspectRatio("-1"); pThis->showOsdMessage(L"Aspect Ratio: Auto"); break;
+                    case IDM_ASPECT_16_9:       pThis->m_engine.setAspectRatio("16:9"); pThis->showOsdMessage(L"Aspect Ratio: 16:9"); break;
+                    case IDM_ASPECT_4_3:        pThis->m_engine.setAspectRatio("4:3"); pThis->showOsdMessage(L"Aspect Ratio: 4:3"); break;
+                    case IDM_ASPECT_21_9:       pThis->m_engine.setAspectRatio("21:9"); pThis->showOsdMessage(L"Aspect Ratio: 21:9"); break;
+                    case IDM_ROTATE_90: {
+                        int curRot = pThis->m_engine.getVideoAdjustments().rotate;
+                        int nextRot = (curRot + 90) % 360;
+                        pThis->m_engine.setVideoRotate(nextRot);
+                        pThis->showOsdMessage(L"Rotation: " + std::to_wstring(nextRot) + L"°");
+                        break;
+                    }
+                    case IDM_FLIP_HORZ: {
+                        bool f = !pThis->m_engine.getVideoAdjustments().flipHorizontal;
+                        pThis->m_engine.setFlip(f, pThis->m_engine.getVideoAdjustments().flipVertical);
+                        pThis->showOsdMessage(f ? L"Flip Horizontal: ON" : L"Flip Horizontal: OFF");
+                        break;
+                    }
+                    case IDM_FLIP_VERT: {
+                        bool v = !pThis->m_engine.getVideoAdjustments().flipVertical;
+                        pThis->m_engine.setFlip(pThis->m_engine.getVideoAdjustments().flipHorizontal, v);
+                        pThis->showOsdMessage(v ? L"Flip Vertical: ON" : L"Flip Vertical: OFF");
+                        break;
+                    }
+                    case IDM_HWDEC_TOGGLE: {
+                        bool en = (pThis->m_engine.getActiveHwdec() == "no");
+                        pThis->m_engine.setHardwareAcceleration(en, "auto-safe");
+                        pThis->showOsdMessage(en ? L"Hardware Acceleration: Enabled" : L"Hardware Acceleration: Disabled");
+                        break;
+                    }
+                    case IDM_SCREENSHOT:        pThis->takeScreenshot(); break;
+                    case IDM_SUBTITLE_SETTINGS: pThis->openSubtitleDialog(); break;
+                    case IDM_SUBTITLE_LOAD:     pThis->openSubtitleDialog(); break;
+                    case IDM_PLAYLIST_TOGGLE:   pThis->togglePlaylistPanel(); break;
+                    case IDM_PLAYLIST_SHUFFLE:  pThis->m_playlistMgr.shuffle(); pThis->m_playlistPanel->refresh(); pThis->showOsdMessage(L"Playlist Shuffled"); break;
+                    case IDM_PLAYLIST_CLEAR:    pThis->m_playlistMgr.clear(); pThis->m_playlistPanel->refresh(); pThis->showOsdMessage(L"Playlist Cleared"); break;
+                    case IDM_FULLSCREEN:        pThis->toggleFullscreen(); break;
+                    case IDM_COMPACT_MODE:      pThis->toggleCompactMode(); break;
+                    case IDM_ALWAYS_ON_TOP:     pThis->toggleAlwaysOnTop(); break;
+                    case IDM_MEDIA_INFO:        pThis->showInfoDialog(); break;
+                    case IDM_PREFERENCES:       pThis->showPreferencesDialog(); break;
+                    case IDM_ABOUT:             pThis->showAboutDialog(); break;
+                }
+                return 0;
+            }
             case WM_TIMER:
                 if (wParam == TIMER_AUTOHIDE) {
                     if (pThis->m_engine.getState() == PlaybackState::Playing && !pThis->m_controlsHidden) {
@@ -892,16 +1405,78 @@ LRESULT CALLBACK RXMainWindow::videoWndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 
     if (pThis) {
         switch (msg) {
-            case WM_LBUTTONDOWN:
+            case WM_LBUTTONDOWN: {
                 pThis->resetAutoHide();
-                pThis->m_engine.togglePause();
+                if (pThis->m_engine.getState() == PlaybackState::Stopped || pThis->m_engine.getState() == PlaybackState::Idle) {
+                    POINT pt{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+                    if (PtInRect(&pThis->m_rcEmptyOpenFile, pt)) {
+                        pThis->openFileDialog();
+                        return 0;
+                    }
+                    if (PtInRect(&pThis->m_rcEmptyOpenFolder, pt)) {
+                        pThis->openFolderDialog();
+                        return 0;
+                    }
+                    if (PtInRect(&pThis->m_rcEmptyOpenUrl, pt)) {
+                        pThis->openUrlDialog();
+                        return 0;
+                    }
+                    for (const auto& item : pThis->m_recentItemRects) {
+                        if (PtInRect(&item.first, pt)) {
+                            pThis->openFile(item.second);
+                            return 0;
+                        }
+                    }
+                } else {
+                    pThis->m_engine.togglePause();
+                }
                 return 0;
+            }
+            case WM_RBUTTONUP: {
+                POINT pt{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+                ClientToScreen(hwnd, &pt);
+                pThis->showContextMenu(pt.x, pt.y);
+                return 0;
+            }
             case WM_LBUTTONDBLCLK:
                 pThis->toggleFullscreen();
                 return 0;
-            case WM_MOUSEMOVE:
+            case WM_MOUSEMOVE: {
                 pThis->resetAutoHide();
+                if (pThis->m_engine.getState() == PlaybackState::Stopped || pThis->m_engine.getState() == PlaybackState::Idle) {
+                    POINT pt{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+                    bool hovFile = PtInRect(&pThis->m_rcEmptyOpenFile, pt);
+                    bool hovFolder = PtInRect(&pThis->m_rcEmptyOpenFolder, pt);
+                    bool hovUrl = PtInRect(&pThis->m_rcEmptyOpenUrl, pt);
+
+                    int hovRecent = -1;
+                    for (size_t i = 0; i < pThis->m_recentItemRects.size(); ++i) {
+                        if (PtInRect(&pThis->m_recentItemRects[i].first, pt)) {
+                            hovRecent = (int)i;
+                            break;
+                        }
+                    }
+
+                    bool needRedraw = (hovFile != pThis->m_hoveringOpenFile) ||
+                                      (hovFolder != pThis->m_hoveringOpenFolder) ||
+                                      (hovUrl != pThis->m_hoveringOpenUrl) ||
+                                      (hovRecent != pThis->m_hoveredRecentIdx);
+
+                    pThis->m_hoveringOpenFile = hovFile;
+                    pThis->m_hoveringOpenFolder = hovFolder;
+                    pThis->m_hoveringOpenUrl = hovUrl;
+                    pThis->m_hoveredRecentIdx = hovRecent;
+
+                    if (hovFile || hovFolder || hovUrl || hovRecent >= 0) {
+                        SetCursor(LoadCursor(nullptr, IDC_HAND));
+                    }
+
+                    if (needRedraw) {
+                        InvalidateRect(hwnd, nullptr, FALSE);
+                    }
+                }
                 break;
+            }
             case WM_MOUSEWHEEL: {
                 short delta = GET_WHEEL_DELTA_WPARAM(wParam);
                 int change = (delta > 0) ? 5 : -5;
@@ -916,6 +1491,13 @@ LRESULT CALLBACK RXMainWindow::videoWndProc(HWND hwnd, UINT msg, WPARAM wParam, 
             case WM_PAINT: {
                 PAINTSTRUCT ps;
                 HDC hdc = BeginPaint(hwnd, &ps);
+
+                if (pThis->m_engine.getState() == PlaybackState::Stopped || pThis->m_engine.getState() == PlaybackState::Idle) {
+                    RECT rc;
+                    GetClientRect(hwnd, &rc);
+                    pThis->drawEmptyState(hdc, rc);
+                }
+
                 // Draw OSD overlay if present
                 if (!pThis->m_osdMessage.empty()) {
                     RECT rc;
@@ -951,6 +1533,24 @@ LRESULT CALLBACK RXMainWindow::controlBarWndProc(HWND hwnd, UINT msg, WPARAM wPa
         case WM_MOUSEMOVE:
             if (pThis) pThis->resetAutoHide();
             break;
+        case WM_MOUSEWHEEL: {
+            if (pThis) {
+                short delta = GET_WHEEL_DELTA_WPARAM(wParam);
+                int change = (delta > 0) ? 5 : -5;
+                int vol = rx::utils::clamp(pThis->m_engine.getVolume() + change, 0, 100);
+                pThis->m_engine.setVolume(vol);
+                pThis->showOsdMessage(L"Volume: " + std::to_wstring(vol) + L"%");
+            }
+            return 0;
+        }
+        case WM_RBUTTONUP: {
+            if (pThis) {
+                POINT pt{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+                ClientToScreen(hwnd, &pt);
+                pThis->showContextMenu(pt.x, pt.y);
+            }
+            return 0;
+        }
     }
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
