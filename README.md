@@ -3,6 +3,7 @@
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(64--bit)-0078D6?style=flat-square&logo=windows)](https://microsoft.com/windows)
 [![Version: 2.0.1](https://img.shields.io/badge/Version-2.0.1-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.0.1)
 [![Author: Rituraj](https://img.shields.io/badge/Author-Rituraj-blueviolet?style=flat-square)](https://github.com/jcksprwx)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![C++: 20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=c%2B%2B)](https://en.cppreference.com/w/cpp/20)
 [![Rendering: Direct3D 11](https://img.shields.io/badge/Renderer-Direct3D%2011-5C2D91?style=flat-square)](https://learn.microsoft.com/windows/win32/direct3d11/)
 [![Audio: WASAPI](https://img.shields.io/badge/Audio-WASAPI%20%7C%20Exclusive-008080?style=flat-square)](https://learn.microsoft.com/windows/win32/coreaudio/)
