@@ -1,0 +1,74 @@
+# ====================================================================
+# RX Media Player - Git Ignore Configuration
+# ====================================================================
+
+# Build Artifacts & CMake Outputs
+build/
+build2/
+build_*/
+out/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+*.ninja
+*.ninja_deps
+*.ninja_log
+*.manifest.res
+*.rc.res
+
+# Compiled Object Files & Libraries
+*.o
+*.obj
+*.lib
+*.a
+*.exp
+*.ilk
+*.pdb
+
+# Unignore compiled Win32 resource object and libmpv import library
+!packaging/rx_player_rc.o
+!third_party/mpv/lib/libmpv.dll.a
+
+# Compiled Executables & Large Binaries (>100MB)
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Ignore third-party large binary runtimes (download via scripts/download_mpv_dlls.ps1)
+third_party/mpv/bin/
+
+# Distribution & Installer Outputs
+dist/
+dist_installer/
+
+# Obsolete / locked files
+src/ui/dialogs/subtitle_dialog.*
+
+# SQLite Database & Transaction Journals
+*.db
+*.db-wal
+*.db-shm
+
+# Application Logs & Diagnostics
+*.log
+rx_player.log
+
+# User Configuration & Test INIs
+*.ini
+test_settings.ini
+test_sub_settings.ini
+
+# IDE & Editor Directories
+.vscode/
+.vs/
+.idea/
+*.suo
+*.user
+*.swp
+*~
+
+# Operating System Files
+Thumbs.db
+Desktop.ini
+.DS_Store
