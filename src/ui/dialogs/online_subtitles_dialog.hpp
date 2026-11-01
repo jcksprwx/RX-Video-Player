@@ -61,9 +61,13 @@ private:
     std::string m_movieHash;
 
     std::vector<subtitles::SubtitleSearchResult> m_results;
+    std::string m_lastSearchError;
     std::thread m_workerThread;
     std::atomic<bool> m_isBusy{false};
     DownloadCallback m_downloadCb;
+
+    HBRUSH m_bgBrush = nullptr;
+    HBRUSH m_editBrush = nullptr;
 };
 
 } // namespace rx::ui

@@ -53,13 +53,21 @@ static const LangOption s_languages[] = {
 };
 
 RXOnlineSubtitlesDialog::RXOnlineSubtitlesDialog() {
+    INITCOMMONCONTROLSEX icex{};
+    icex.dwSize = sizeof(icex);
+    icex.dwICC = ICC_LISTVIEW_CLASSES;
+    InitCommonControlsEx(&icex);
+
+    m_bgBrush = CreateSolidBrush(theme::kPanelBg);
+    m_editBrush = CreateSolidBrush(RGB(24, 24, 24));
+
     WNDCLASSEXW wc{};
     wc.cbSize = sizeof(WNDCLASSEXW);
     wc.style = CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc = dlgProc;
     wc.hInstance = GetModuleHandleW(nullptr);
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    wc.hbrBackground = CreateSolidBrush(theme::kPanelBg);
+    wc.hbrBackground = m_bgBrush;
     wc.lpszClassName = kOnlineSubClass;
     RegisterClassExW(&wc);
 
@@ -77,6 +85,8 @@ RXOnlineSubtitlesDialog::~RXOnlineSubtitlesDialog() {
     if (m_workerThread.joinable()) m_workerThread.join();
     if (m_font) DeleteObject(m_font);
     if (m_fontBold) DeleteObject(m_fontBold);
+    if (m_bgBrush) DeleteObject(m_bgBrush);
+    if (m_editBrush) DeleteObject(m_editBrush);
 }
 
 void RXOnlineSubtitlesDialog::close() {
@@ -101,6 +111,17 @@ bool RXOnlineSubtitlesDialog::show(HWND parentHwnd, const std::string& currentMe
     }
 
     if (m_hwnd && IsWindow(m_hwnd)) {
+        // Dialog is already created; update fields
+        std::wstring fileText = L"File: " + rx::utils::utf8ToWide(m_mediaInfo.rawFilename.empty() ? "(No media loaded)" : m_mediaInfo.rawFilename);
+        if (!m_movieHash.empty()) {
+            fileText += L"  [MovieHash: " + rx::utils::utf8ToWide(m_movieHash) + L"]";
+        }
+        if (m_lblFile) SetWindowTextW(m_lblFile, fileText.c_str());
+        if (m_editTitle) SetWindowTextW(m_editTitle, rx::utils::utf8ToWide(m_mediaInfo.cleanTitle).c_str());
+        if (m_editYear) SetWindowTextW(m_editYear, (m_mediaInfo.year > 0) ? std::to_wstring(m_mediaInfo.year).c_str() : L"");
+        if (m_editSeason) SetWindowTextW(m_editSeason, (m_mediaInfo.season > 0) ? std::to_wstring(m_mediaInfo.season).c_str() : L"");
+        if (m_editEpisode) SetWindowTextW(m_editEpisode, (m_mediaInfo.episode > 0) ? std::to_wstring(m_mediaInfo.episode).c_str() : L"");
+
         SetForegroundWindow(m_hwnd);
         return true;
     }
@@ -126,8 +147,15 @@ bool RXOnlineSubtitlesDialog::show(HWND parentHwnd, const std::string& currentMe
     ShowWindow(m_hwnd, SW_SHOW);
     UpdateWindow(m_hwnd);
 
-    // If title is prefilled, automatically trigger search
-    if (!m_mediaInfo.cleanTitle.empty()) {
+    std::string key = Settings::instance().opensubtitles.apiKey;
+    if (key.empty()) {
+        char* envKey = getenv("OPENSUBTITLES_API_KEY");
+        if (envKey) key = envKey;
+    }
+
+    if (key.empty()) {
+        updateStatus(L"Notice: OpenSubtitles API key is required. Enter your free API key above to search.");
+    } else if (!m_mediaInfo.cleanTitle.empty()) {
         onSearchClicked();
     }
 
@@ -218,6 +246,9 @@ void RXOnlineSubtitlesDialog::onInitDialog() {
     );
     SendMessageW(m_listResults, WM_SETFONT, (WPARAM)m_font, TRUE);
     ListView_SetExtendedListViewStyle(m_listResults, LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_DOUBLEBUFFER);
+    ListView_SetBkColor(m_listResults, RGB(24, 24, 24));
+    ListView_SetTextBkColor(m_listResults, RGB(24, 24, 24));
+    ListView_SetTextColor(m_listResults, RGB(230, 230, 230));
 
     LVCOLUMNW lvc{};
     lvc.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
@@ -260,12 +291,28 @@ void RXOnlineSubtitlesDialog::onInitDialog() {
                                 WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
                                 650, 456, 65, 28, m_hwnd, (HMENU)(UINT_PTR)IDC_OS_CLOSE, nullptr, nullptr);
     SendMessageW(m_btnClose, WM_SETFONT, (WPARAM)m_font, TRUE);
+
+    RECT rc{};
+    GetClientRect(m_hwnd, &rc);
+    onResize(rc.right - rc.left, rc.bottom - rc.top);
 }
 
 void RXOnlineSubtitlesDialog::onResize(int width, int height) {
     if (!m_hwnd || width < 400 || height < 300) return;
 
     SetWindowPos(m_lblFile, nullptr, 16, 12, width - 32, 20, SWP_NOZORDER);
+
+    // Position API Key row responsively
+    int searchBtnW = 160;
+    int searchBtnX = width - 16 - searchBtnW;
+    SetWindowPos(m_btnSearch, nullptr, searchBtnX, 70, searchBtnW, 24, SWP_NOZORDER);
+    int saveKeyW = 75;
+    int saveKeyX = searchBtnX - 8 - saveKeyW;
+    SetWindowPos(m_btnSaveKey, nullptr, saveKeyX, 70, saveKeyW, 24, SWP_NOZORDER);
+    int keyEditW = saveKeyX - 8 - 75;
+    if (keyEditW > 100) {
+        SetWindowPos(m_editApiKey, nullptr, 75, 70, keyEditW, 24, SWP_NOZORDER);
+    }
 
     int btnTop = height - 44;
     SetWindowPos(m_listResults, nullptr, 16, 104, width - 32, btnTop - 114, SWP_NOZORDER);
@@ -311,6 +358,11 @@ void RXOnlineSubtitlesDialog::onSearchClicked() {
     GetWindowTextW(m_editApiKey, bufKey, 256);
     std::string apiKey = rx::utils::wideToUtf8(bufKey);
 
+    if (apiKey.empty()) {
+        updateStatus(L"Please enter an OpenSubtitles API key (get one free at opensubtitles.com).");
+        return;
+    }
+
     m_isBusy = true;
     updateStatus(L"Searching OpenSubtitles.com...");
     EnableWindow(m_btnSearch, FALSE);
@@ -330,6 +382,7 @@ void RXOnlineSubtitlesDialog::onSearchClicked() {
         }
 
         m_results = std::move(res);
+        m_lastSearchError = err;
         m_isBusy = false;
         PostMessageW(m_hwnd, WM_APP_SEARCH_COMPLETE, (WPARAM)m_results.size(), (LPARAM)(err.empty() ? 0 : 1));
     });
@@ -435,6 +488,7 @@ LRESULT CALLBACK RXOnlineSubtitlesDialog::dlgProc(HWND hwnd, UINT msg, WPARAM wP
     if (msg == WM_NCCREATE) {
         auto* cs = reinterpret_cast<CREATESTRUCTW*>(lParam);
         pThis = static_cast<RXOnlineSubtitlesDialog*>(cs->lpCreateParams);
+        pThis->m_hwnd = hwnd;
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
     } else {
         pThis = reinterpret_cast<RXOnlineSubtitlesDialog*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -450,6 +504,21 @@ LRESULT CALLBACK RXOnlineSubtitlesDialog::dlgProc(HWND hwnd, UINT msg, WPARAM wP
         case WM_SIZE: {
             pThis->onResize(LOWORD(lParam), HIWORD(lParam));
             return 0;
+        }
+        case WM_CTLCOLORSTATIC: {
+            HDC hdcStatic = (HDC)wParam;
+            SetTextColor(hdcStatic, RGB(220, 220, 220));
+            SetBkMode(hdcStatic, TRANSPARENT);
+            return (LRESULT)pThis->m_bgBrush;
+        }
+        case WM_CTLCOLOREDIT: {
+            HDC hdcEdit = (HDC)wParam;
+            SetTextColor(hdcEdit, RGB(245, 245, 245));
+            SetBkColor(hdcEdit, RGB(24, 24, 24));
+            return (LRESULT)pThis->m_editBrush;
+        }
+        case WM_CTLCOLORBTN: {
+            return (LRESULT)pThis->m_bgBrush;
         }
         case WM_COMMAND: {
             UINT id = LOWORD(wParam);
@@ -483,8 +552,10 @@ LRESULT CALLBACK RXOnlineSubtitlesDialog::dlgProc(HWND hwnd, UINT msg, WPARAM wP
             size_t count = pThis->m_results.size();
             if (count > 0) {
                 pThis->updateStatus(L"Found " + std::to_wstring(count) + L" matching subtitles. Select one and click Download.");
+            } else if (!pThis->m_lastSearchError.empty()) {
+                pThis->updateStatus(L"Search error: " + rx::utils::utf8ToWide(pThis->m_lastSearchError));
             } else {
-                pThis->updateStatus(L"No subtitles found. Try adjusting title or checking your API key.");
+                pThis->updateStatus(L"No subtitles found for this title. Try a different title or select 'All Languages'.");
             }
             return 0;
         }

@@ -1,7 +1,7 @@
 # RX Media Player
 
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(64--bit)-0078D6?style=flat-square&logo=windows)](https://microsoft.com/windows)
-[![Version: 2.4.0](https://img.shields.io/badge/Version-2.4.0-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.4.0)
+[![Version: 2.4.1](https://img.shields.io/badge/Version-2.4.1-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.4.1)
 [![Author: Rituraj](https://img.shields.io/badge/Author-Rituraj-blueviolet?style=flat-square)](https://github.com/jcksprwx)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![C++: 20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=c%2B%2B)](https://en.cppreference.com/w/cpp/20)
@@ -85,16 +85,17 @@ Legacy Windows media players are often cluttered with outdated interfaces, slugg
 - **Scene Bookmarks (`Ctrl+B`):** Save timestamps with custom notes. Press `B` to instantly drop a bookmark during playback. Double-click to jump to any saved bookmark.
 - **Watched Folders & Library Indexing:** Indexes video/audio files from monitored local drives.
 
-### 🎧 Audio Streams, Subtitle Tracks & OpenSubtitles Integration (v2.4.0)
+### 🎧 Audio Streams, Subtitle Tracks & OpenSubtitles Integration (v2.4.1)
 - **Compact Custom Dark Menus:** Windows-style popup menus styled with dark charcoal `#414141`, `#191919` hover highlight, `#D0D0D0` text, and bright yellow `#FFFF00` selected-track text with blue circular radio indicators.
 - **Deep Technical Track Details:** Full display of audio and subtitle stream technical descriptors: `Language, Track Title [Codec] (Audio N) — Codec, Sample Rate, Channels, Bitrate` (e.g. `Hindi, Main Audio [DDP 5.1] (Audio 3) — Dolby Digital Plus, 48.0 kHz, 5.1 Ch, 192 kbit/s`).
 - **Immediate Seamless Track Switching:** Switch audio and subtitle streams instantly without video interruption or player re-buffering.
 - **Dedicated Audio Channel Routing:** Switch instantly between `Both`, `Left channel`, and `Right channel` modes with matching OSD notifications.
 - **OpenSubtitles.com REST API v1 Integration:** Native Windows WinHTTP client calculating standard 64-bit MovieHash checksums and regex title parsing to search and download SRT/VTT subtitles online directly into playback.
+- **Interactive Codec Badges & Responsive Toolbar:** Dynamic text extent measuring for stream codec badges `[H.265]`, `[AAC]`, and `[2.0]` ensuring all labels remain fully visible across standard resolutions (1280x720, 1366x768, 1920x1080). Clicking badges triggers detailed OSD diagnostic telemetry.
 
 ---
 
-## ⌨️ Keyboard Shortcuts & OSD Reference (v2.4.0)
+## ⌨️ Keyboard Shortcuts & OSD Reference (v2.4.1)
 
 Every keyboard shortcut executes instantly and displays real-time On-Screen Display (OSD) feedback directly over the video presentation canvas. Shortcuts are fully configurable in **Preferences (`F5`)** under the Keyboard Shortcuts tab, with searchable reference in **Help → Keyboard Shortcuts (`F1`)**.
 

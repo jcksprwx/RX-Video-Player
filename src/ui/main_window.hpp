@@ -147,6 +147,10 @@ private:
     double m_cachedPos = 0.0;
     double m_cachedDur = 0.0;
     RECT m_rcHwdecBadge{};
+    RECT m_rcVideoCodecBadge{};
+    RECT m_rcAudioCodecBadge{};
+    RECT m_rcChannelsBadge{};
+    int m_rightControlsStart = 0;
 
     // Empty state interactive regions
     RECT m_rcEmptyOpenFile{};

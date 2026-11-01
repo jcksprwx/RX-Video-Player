@@ -109,7 +109,7 @@ bool httpGetRequest(const std::wstring& host, const std::wstring& path,
     outBody.clear();
     outStatusCode = 0;
 
-    HINTERNET hSession = WinHttpOpen(L"RXMediaPlayer/2.4.0 (Windows NT 10.0; Win64; x64)",
+    HINTERNET hSession = WinHttpOpen(L"RXMediaPlayer/2.4.1 (Windows NT 10.0; Win64; x64)",
                                     WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
                                     WINHTTP_NO_PROXY_NAME,
                                     WINHTTP_NO_PROXY_BYPASS, 0);
@@ -137,7 +137,7 @@ bool httpGetRequest(const std::wstring& host, const std::wstring& path,
     }
 
     // Set headers
-    std::wstring headers = L"User-Agent: RXMediaPlayer v2.4.0\r\nAccept: application/json\r\n";
+    std::wstring headers = L"User-Agent: RXMediaPlayer v2.4.1\r\nAccept: application/json\r\n";
     if (!apiKey.empty()) {
         headers += L"Api-Key: " + rx::utils::utf8ToWide(apiKey) + L"\r\n";
     }
@@ -188,7 +188,7 @@ bool httpPostRequest(const std::wstring& host, const std::wstring& path,
     outBody.clear();
     outStatusCode = 0;
 
-    HINTERNET hSession = WinHttpOpen(L"RXMediaPlayer/2.4.0 (Windows NT 10.0; Win64; x64)",
+    HINTERNET hSession = WinHttpOpen(L"RXMediaPlayer/2.4.1 (Windows NT 10.0; Win64; x64)",
                                     WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
                                     WINHTTP_NO_PROXY_NAME,
                                     WINHTTP_NO_PROXY_BYPASS, 0);
@@ -215,7 +215,7 @@ bool httpPostRequest(const std::wstring& host, const std::wstring& path,
         return false;
     }
 
-    std::wstring headers = L"Content-Type: application/json\r\nAccept: application/json\r\nUser-Agent: RXMediaPlayer v2.4.0\r\n";
+    std::wstring headers = L"Content-Type: application/json\r\nAccept: application/json\r\nUser-Agent: RXMediaPlayer v2.4.1\r\n";
     if (!apiKey.empty()) {
         headers += L"Api-Key: " + rx::utils::utf8ToWide(apiKey) + L"\r\n";
     }

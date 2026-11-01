@@ -619,27 +619,49 @@ void RXMainWindow::layoutControls() {
     int width = rc.right - rc.left;
     int height = rc.bottom - rc.top;
 
-    int btnY = (height - 32) / 2;
-    int btnH = 32;
+    int btnY = (height - 30) / 2;
+    int btnH = 30;
 
-    // Left playback controls (5 buttons)
-    m_btnPlay.move(8, btnY, 34, btnH);
-    m_btnStop.move(44, btnY, 30, btnH);
-    m_btnPrev.move(76, btnY, 30, btnH);
-    m_btnNext.move(108, btnY, 30, btnH);
-    m_btnOpen.move(140, btnY, 32, btnH);
+    // Left playback controls (5 compact buttons)
+    // 8, 42, 72, 102, 132 -> Play (32), Stop (28), Prev (28), Next (28), Open (30)
+    // End of Open button: 132 + 30 = 162.
+    m_btnPlay.move(8, btnY, 32, btnH);
+    m_btnStop.move(42, btnY, 28, btnH);
+    m_btnPrev.move(72, btnY, 28, btnH);
+    m_btnNext.move(102, btnY, 28, btnH);
+    m_btnOpen.move(132, btnY, 30, btnH);
 
     // Right feature controls
     int right = width - 8;
-    right -= 34; m_btnFullscreen.move(right, btnY, 34, btnH);
-    right -= 32; m_btnMenu.move(right, btnY, 30, btnH);
-    right -= 32; m_btnSettings.move(right, btnY, 30, btnH);
-    right -= 36; m_btnPlaylist.move(right, btnY, 36, btnH);
-    right -= 32; m_btnAudio.move(right, btnY, 30, btnH);
-    right -= 32; m_btnSubtitles.move(right, btnY, 30, btnH);
-    right -= 34; m_btn3D.move(right, btnY, 32, btnH);
-    right -= 38; m_btn360.move(right, btnY, 36, btnH);
-    right -= 34; m_btnVideo.move(right, btnY, 32, btnH);
+    right -= 32; m_btnFullscreen.move(right, btnY, 32, btnH);
+    right -= 2;
+    right -= 28; m_btnMenu.move(right, btnY, 28, btnH);
+    right -= 2;
+    right -= 28; m_btnSettings.move(right, btnY, 28, btnH);
+    right -= 2;
+    right -= 32; m_btnPlaylist.move(right, btnY, 32, btnH);
+    right -= 2;
+    right -= 28; m_btnAudio.move(right, btnY, 28, btnH);
+    right -= 2;
+    right -= 28; m_btnSubtitles.move(right, btnY, 28, btnH);
+    right -= 2;
+    right -= 28; m_btnVideo.move(right, btnY, 28, btnH);
+
+    bool showSecondary = (width >= 880);
+    if (showSecondary) {
+        ShowWindow(m_btn360.getHwnd(), SW_SHOW);
+        ShowWindow(m_btn3D.getHwnd(), SW_SHOW);
+        right -= 2;
+        right -= 30; m_btn360.move(right, btnY, 30, btnH);
+        right -= 2;
+        right -= 28; m_btn3D.move(right, btnY, 28, btnH);
+    } else {
+        ShowWindow(m_btn3D.getHwnd(), SW_HIDE);
+        ShowWindow(m_btn360.getHwnd(), SW_HIDE);
+        m_btn3D.move(-1000, -1000, 0, 0);
+        m_btn360.move(-1000, -1000, 0, 0);
+    }
+    m_rightControlsStart = right;
 }
 
 void RXMainWindow::onPaintControlBar(HDC hdc) {
@@ -664,12 +686,12 @@ void RXMainWindow::onPaintControlBar(HDC hdc) {
     MoveToEx(memDC, 0, 0, nullptr);
     LineTo(memDC, width, 0);
 
-    // Left separator line after Left playback buttons (x = 178)
-    MoveToEx(memDC, 178, 8, nullptr);
-    LineTo(memDC, 178, height - 8);
+    // Left separator line after Left playback buttons (x = 168)
+    MoveToEx(memDC, 168, 8, nullptr);
+    LineTo(memDC, 168, height - 8);
 
     // Right separator line before Right feature buttons
-    int rightControlsStart = width - (34 + 32 + 32 + 36 + 32 + 32 + 34 + 38 + 34 + 16);
+    int rightControlsStart = (m_rightControlsStart > 0) ? m_rightControlsStart : (width - 240);
     MoveToEx(memDC, rightControlsStart - 8, 8, nullptr);
     LineTo(memDC, rightControlsStart - 8, height - 8);
 
@@ -684,16 +706,15 @@ void RXMainWindow::onPaintControlBar(HDC hdc) {
     std::wstring curTimeW = rx::utils::utf8ToWide(curTime);
     std::wstring durTimeW = rx::utils::utf8ToWide(durTime);
 
-    int curX = 190;
+    int curX = 176;
     HFONT oldFont = static_cast<HFONT>(SelectObject(memDC, m_uiBoldFont));
     SetTextColor(memDC, theme::kCurrentTimeAccent); // #83C6FF subtle blue accent
 
-    RECT rcTime{ curX, 0, curX + 65, height };
+    SIZE szCur{};
+    GetTextExtentPoint32W(memDC, curTimeW.c_str(), static_cast<int>(curTimeW.length()), &szCur);
+    RECT rcTime{ curX, 0, curX + szCur.cx + 4, height };
     DrawTextW(memDC, curTimeW.c_str(), -1, &rcTime, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-
-    SIZE sz;
-    GetTextExtentPoint32W(memDC, curTimeW.c_str(), static_cast<int>(curTimeW.length()), &sz);
-    curX += sz.cx + 5;
+    curX += szCur.cx + 5;
 
     // Separator /
     SelectObject(memDC, m_uiFont);
@@ -704,15 +725,35 @@ void RXMainWindow::onPaintControlBar(HDC hdc) {
 
     // Total Duration #F2F2F2
     SetTextColor(memDC, theme::kTextPrimary);
-    RECT rcDur{ curX, 0, curX + 65, height };
+    SIZE szDur{};
+    GetTextExtentPoint32W(memDC, durTimeW.c_str(), static_cast<int>(durTimeW.length()), &szDur);
+    RECT rcDur{ curX, 0, curX + szDur.cx + 4, height };
     DrawTextW(memDC, durTimeW.c_str(), -1, &rcDur, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    curX += szDur.cx + 12;
 
-    GetTextExtentPoint32W(memDC, durTimeW.c_str(), static_cast<int>(durTimeW.length()), &sz);
-    curX += sz.cx + 12;
+    // Reset badge rects before painting
+    m_rcHwdecBadge = {0, 0, 0, 0};
+    m_rcVideoCodecBadge = {0, 0, 0, 0};
+    m_rcAudioCodecBadge = {0, 0, 0, 0};
+    m_rcChannelsBadge = {0, 0, 0, 0};
 
     // Telemetry Badges Helper
-    auto drawBadge = [&](int x, int w, const std::wstring& text, bool isAccent) -> RECT {
-        RECT r{ x, (height - 22) / 2, x + w, (height + 22) / 2 };
+    HFONT bFont = CreateFontW(-11, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+                              DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                              CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+    HFONT fO = static_cast<HFONT>(SelectObject(memDC, bFont));
+
+    auto drawBadge = [&](int x, const std::wstring& text, bool isAccent) -> RECT {
+        SIZE szBadge{};
+        GetTextExtentPoint32W(memDC, text.c_str(), static_cast<int>(text.length()), &szBadge);
+        int badgeW = szBadge.cx + 10;
+        if (badgeW < 30) badgeW = 30;
+
+        if (x + badgeW >= rightControlsStart - 8) {
+            return RECT{0, 0, 0, 0};
+        }
+
+        RECT r{ x, (height - 20) / 2, x + badgeW, (height + 20) / 2 };
         HBRUSH bBg = CreateSolidBrush(theme::kButtonBg);
         HPEN bPen = CreatePen(PS_SOLID, 1, isAccent ? theme::kAccentColor : theme::kBorderColor);
         HPEN pO = static_cast<HPEN>(SelectObject(memDC, bPen));
@@ -723,14 +764,8 @@ void RXMainWindow::onPaintControlBar(HDC hdc) {
         DeleteObject(bBg);
         DeleteObject(bPen);
 
-        HFONT bFont = CreateFontW(-11, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
-                                  DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                                  CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
-        HFONT fO = static_cast<HFONT>(SelectObject(memDC, bFont));
         SetTextColor(memDC, isAccent ? theme::kAccentColor : theme::kTextSecondary);
         DrawTextW(memDC, text.c_str(), -1, &r, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-        SelectObject(memDC, fO);
-        DeleteObject(bFont);
         return r;
     };
 
@@ -738,39 +773,55 @@ void RXMainWindow::onPaintControlBar(HDC hdc) {
     bool isHw = (m_engine.getActiveHwdec() != "no" && !m_engine.getActiveHwdec().empty());
 
     // 1. [ H/W ] or [ S/W ] badge
-    if (curX + 44 < rightControlsStart - 10) {
-        m_rcHwdecBadge = drawBadge(curX, 42, isHw ? L"H/W" : L"S/W", isHw);
-        curX += 48;
+    RECT rcHw = drawBadge(curX, isHw ? L"H/W" : L"S/W", isHw);
+    if (rcHw.right > rcHw.left) {
+        m_rcHwdecBadge = rcHw;
+        curX = rcHw.right + 6;
     }
 
     // 2. [ H.265 ] Video Codec Badge
-    if (!info.videoCodec.empty() && curX + 54 < rightControlsStart - 10) {
+    if (!info.videoCodec.empty()) {
         std::wstring vCodecW = rx::utils::utf8ToWide(info.videoCodec);
         std::transform(vCodecW.begin(), vCodecW.end(), vCodecW.begin(), ::towupper);
         if (vCodecW == L"HEVC") vCodecW = L"H.265";
         else if (vCodecW == L"H264") vCodecW = L"H.264";
-        drawBadge(curX, 52, vCodecW, false);
-        curX += 58;
+
+        RECT rcV = drawBadge(curX, vCodecW, false);
+        if (rcV.right > rcV.left) {
+            m_rcVideoCodecBadge = rcV;
+            curX = rcV.right + 6;
+        }
     }
 
     // 3. [ AAC ] Audio Codec Badge
-    if (!info.audioCodec.empty() && curX + 48 < rightControlsStart - 10) {
+    if (!info.audioCodec.empty()) {
         std::wstring aCodecW = rx::utils::utf8ToWide(info.audioCodec);
         std::transform(aCodecW.begin(), aCodecW.end(), aCodecW.begin(), ::towupper);
-        drawBadge(curX, 46, aCodecW, false);
-        curX += 52;
+
+        RECT rcA = drawBadge(curX, aCodecW, false);
+        if (rcA.right > rcA.left) {
+            m_rcAudioCodecBadge = rcA;
+            curX = rcA.right + 6;
+        }
     }
 
     // 4. [ 2.0 ] Channels Badge
-    if (info.audioChannels > 0 && curX + 38 < rightControlsStart - 10) {
+    if (info.audioChannels > 0) {
         std::wstring chStr = (info.audioChannels == 6) ? L"5.1" :
                              (info.audioChannels == 8) ? L"7.1" :
                              (info.audioChannels == 2) ? L"2.0" :
+                             (info.audioChannels == 1) ? L"1.0" :
                              (std::to_wstring(info.audioChannels) + L"ch");
-        drawBadge(curX, 36, chStr, false);
-        curX += 42;
+
+        RECT rcCh = drawBadge(curX, chStr, false);
+        if (rcCh.right > rcCh.left) {
+            m_rcChannelsBadge = rcCh;
+            curX = rcCh.right + 6;
+        }
     }
 
+    SelectObject(memDC, fO);
+    DeleteObject(bFont);
     SelectObject(memDC, oldFont);
 
     BitBlt(hdc, 0, 0, width, height, memDC, 0, 0, SRCCOPY);
@@ -981,7 +1032,7 @@ void RXMainWindow::showShortcutHelpDialog() {
 
 void RXMainWindow::showAboutDialog() {
     std::wstring msg =
-        L"RX Media Player v2.4.0 (Windows 64-bit)\n\n"
+        L"RX Media Player v2.4.1 (Windows 64-bit)\n\n"
         L"Author & Lead Architect: Rituraj\n"
         L"Repository: https://github.com/jcksprwx/RX-Video-Player\n\n"
         L"Architecture & Subsystems:\n"
@@ -2449,6 +2500,21 @@ LRESULT CALLBACK RXMainWindow::controlBarWndProc(HWND hwnd, UINT msg, WPARAM wPa
         case WM_MOUSEMOVE:
             if (pThis) pThis->resetAutoHide();
             break;
+        case WM_SETCURSOR: {
+            if (pThis) {
+                POINT pt;
+                GetCursorPos(&pt);
+                ScreenToClient(hwnd, &pt);
+                if (PtInRect(&pThis->m_rcHwdecBadge, pt) ||
+                    PtInRect(&pThis->m_rcVideoCodecBadge, pt) ||
+                    PtInRect(&pThis->m_rcAudioCodecBadge, pt) ||
+                    PtInRect(&pThis->m_rcChannelsBadge, pt)) {
+                    SetCursor(LoadCursorW(nullptr, IDC_HAND));
+                    return TRUE;
+                }
+            }
+            break;
+        }
         case WM_LBUTTONDOWN: {
             if (pThis) {
                 POINT pt{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
@@ -2457,6 +2523,40 @@ LRESULT CALLBACK RXMainWindow::controlBarWndProc(HWND hwnd, UINT msg, WPARAM wPa
                     pThis->m_engine.setHardwareAcceleration(en, "auto-safe");
                     pThis->showOsdMessage(en ? L"Hardware Acceleration: Enabled" : L"Hardware Acceleration: Disabled");
                     InvalidateRect(hwnd, nullptr, FALSE);
+                    return 0;
+                }
+                if (PtInRect(&pThis->m_rcVideoCodecBadge, pt)) {
+                    const auto& mi = pThis->m_engine.getMediaInfo();
+                    std::wstring msg = L"Video: " + rx::utils::utf8ToWide(mi.videoCodec);
+                    if (mi.videoWidth > 0 && mi.videoHeight > 0) {
+                        msg += L" (" + std::to_wstring(mi.videoWidth) + L"x" + std::to_wstring(mi.videoHeight) + L")";
+                    }
+                    if (mi.videoFps > 0.0) {
+                        wchar_t fpsBuf[32];
+                        swprintf_s(fpsBuf, L" @ %.2f fps", mi.videoFps);
+                        msg += fpsBuf;
+                    }
+                    pThis->showOsdMessage(msg);
+                    return 0;
+                }
+                if (PtInRect(&pThis->m_rcAudioCodecBadge, pt)) {
+                    const auto& mi = pThis->m_engine.getMediaInfo();
+                    std::wstring msg = L"Audio: " + rx::utils::utf8ToWide(mi.audioCodec);
+                    if (mi.audioSampleRate > 0) {
+                        msg += L" (" + std::to_wstring(mi.audioSampleRate / 1000) + L"." +
+                               std::to_wstring((mi.audioSampleRate % 1000) / 100) + L" kHz)";
+                    }
+                    pThis->showOsdMessage(msg);
+                    return 0;
+                }
+                if (PtInRect(&pThis->m_rcChannelsBadge, pt)) {
+                    const auto& mi = pThis->m_engine.getMediaInfo();
+                    std::wstring chDesc = (mi.audioChannels == 6) ? L"5.1 Surround" :
+                                         (mi.audioChannels == 8) ? L"7.1 Surround" :
+                                         (mi.audioChannels == 2) ? L"2.0 Stereo" :
+                                         (mi.audioChannels == 1) ? L"1.0 Mono" :
+                                         (std::to_wstring(mi.audioChannels) + L" Channels");
+                    pThis->showOsdMessage(L"Channels: " + chDesc);
                     return 0;
                 }
             }
