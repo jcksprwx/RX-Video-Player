@@ -85,6 +85,12 @@ public:
     // Diagnostics & Telemetry
     DiagnosticsReport getDiagnostics() const;
     void toggleOsdStats();
+    void showOsd(const std::string& text, int durationMs = 2000);
+    std::string cycleAudioTrack();
+    std::string cycleSubtitleTrack();
+    bool toggleSubtitleVisibility();
+    bool isSubtitlesVisible() const { return m_subtitlesVisible; }
+    std::vector<MediaTrack> getAudioTracks() const;
 
     // Hardware acceleration
     void setHardwareAcceleration(bool enabled, const std::string& api = "auto-safe");
@@ -132,6 +138,7 @@ private:
     double m_subDelay = 0.0;
     SubtitleStyle m_subStyle;
     int m_selectedSubTrack = 1;
+    bool m_subtitlesVisible = true;
     double m_audioDelay = 0.0;
     double m_videoDelay = 0.0;
     std::string m_audioFilter;

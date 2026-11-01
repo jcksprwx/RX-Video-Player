@@ -10,6 +10,7 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include <cmath>
 
 namespace rx::ui {
 
@@ -86,6 +87,7 @@ constexpr UINT IDM_ALWAYS_ON_TOP     = 9082;
 constexpr UINT IDM_MEDIA_INFO        = 9083;
 constexpr UINT IDM_PREFERENCES       = 9090;
 constexpr UINT IDM_ABOUT             = 9091;
+constexpr UINT IDM_SHORTCUT_HELP     = 9092;
 constexpr UINT IDM_RECENT_BASE       = 9200;
 
 RXMainWindow::RXMainWindow() = default;
@@ -275,6 +277,7 @@ bool RXMainWindow::create(HINSTANCE hInstance, int nCmdShow) {
     library::MediaDatabase::instance().initialize();
     m_bmDialog = std::make_unique<RXBookmarkDialog>(m_engine);
     m_prefsDialog = std::make_unique<RXPreferencesDialog>();
+    ShortcutManager::instance().loadFromSettings(settings);
 
     m_audioPanel = std::make_unique<RXAudioPanel>(m_engine);
     m_audioPanel->create(m_mainHwnd, ww - 340, 38, 340, wh - 38 - 74);
@@ -778,6 +781,7 @@ void RXMainWindow::showOsdMessage(const std::wstring& msg, int durationMs) {
     m_osdMessage = msg;
     if (m_osdTimerId) KillTimer(m_mainHwnd, m_osdTimerId);
     m_osdTimerId = SetTimer(m_mainHwnd, TIMER_OSD, durationMs, nullptr);
+    m_engine.showOsd(rx::utils::wideToUtf8(msg), durationMs);
     if (m_videoHwnd) InvalidateRect(m_videoHwnd, nullptr, FALSE);
 }
 
@@ -914,6 +918,7 @@ void RXMainWindow::toggleFullscreen() {
     RECT rc;
     GetClientRect(m_mainHwnd, &rc);
     onResize(rc.right - rc.left, rc.bottom - rc.top);
+    showOsdMessage(m_isFullscreen ? L"Fullscreen" : L"Windowed Mode");
 }
 
 void RXMainWindow::togglePlaylistPanel() {
@@ -960,9 +965,14 @@ void RXMainWindow::showPreferencesDialog() {
     m_prefsDialog->show(m_mainHwnd);
 }
 
+void RXMainWindow::showShortcutHelpDialog() {
+    if (!m_shortcutHelpDialog) m_shortcutHelpDialog = std::make_unique<RXShortcutHelpDialog>();
+    m_shortcutHelpDialog->show(m_mainHwnd);
+}
+
 void RXMainWindow::showAboutDialog() {
     std::wstring msg =
-        L"RX Media Player v2.1.0 (Windows 64-bit)\n\n"
+        L"RX Media Player v2.3.0 (Windows 64-bit)\n\n"
         L"Author & Lead Architect: Rituraj\n"
         L"Repository: https://github.com/jcksprwx/RX-Video-Player\n\n"
         L"Architecture & Subsystems:\n"
@@ -999,7 +1009,7 @@ void RXMainWindow::toggleAlwaysOnTop() {
     SetWindowPos(m_mainHwnd, m_alwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0,
                  SWP_NOMOVE | SWP_NOSIZE);
     m_titleBar.setPinned(m_alwaysOnTop);
-    showOsdMessage(m_alwaysOnTop ? L"Always On Top: ON" : L"Always On Top: OFF");
+    showOsdMessage(m_alwaysOnTop ? L"Always on Top: On" : L"Always on Top: Off");
 }
 
 void RXMainWindow::cyclePlaybackSpeed() {
@@ -1135,7 +1145,8 @@ void RXMainWindow::showContextMenu(int screenX, int screenY) {
     AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hSubView, L"View");
 
     AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(hMenu, MF_STRING, IDM_PREFERENCES, L"Preferences...\tCtrl+P");
+    AppendMenuW(hMenu, MF_STRING, IDM_PREFERENCES, L"Preferences...\tF5");
+    AppendMenuW(hMenu, MF_STRING, IDM_SHORTCUT_HELP, L"Keyboard Shortcuts...\tF1");
     AppendMenuW(hMenu, MF_STRING, IDM_ABOUT, L"About RX Media Player...");
 
     TrackPopupMenuEx(hMenu, TPM_LEFTALIGN | TPM_RIGHTBUTTON, screenX, screenY, m_mainHwnd, nullptr);
@@ -1283,7 +1294,11 @@ void RXMainWindow::toggleMute() {
     bool mute = !m_engine.isMuted();
     m_engine.setMute(mute);
     m_timelineStrip.setVolume(m_engine.getVolume(), mute);
-    showOsdMessage(mute ? L"Muted" : L"Unmuted");
+    if (mute) {
+        showOsdMessage(L"Muted");
+    } else {
+        showOsdMessage(L"Volume: " + std::to_wstring(m_engine.getVolume()) + L"%");
+    }
 }
 
 void RXMainWindow::takeScreenshot() {
@@ -1331,119 +1346,364 @@ void RXMainWindow::onDropFiles(HDROP hDrop) {
 }
 
 void RXMainWindow::onKeyDown(WPARAM key) {
+    // Suppress shortcuts when an edit box or text field has focus
+    HWND focused = GetFocus();
+    if (focused) {
+        wchar_t clsName[64] = {0};
+        GetClassNameW(focused, clsName, 64);
+        if (_wcsicmp(clsName, L"EDIT") == 0 || _wcsicmp(clsName, L"RichEdit") == 0 || _wcsicmp(clsName, L"RICHEDIT50W") == 0) {
+            return;
+        }
+    }
+
+    if (key == VK_ESCAPE) {
+        if (m_isFullscreen) {
+            toggleFullscreen();
+            return;
+        }
+    }
+
     bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
     bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+    bool alt = (GetKeyState(VK_MENU) & 0x8000) != 0;
 
+    PlayerAction action = ShortcutManager::instance().findAction(static_cast<WORD>(key), ctrl, shift, alt);
+    if (action != PlayerAction::None) {
+        executeAction(action);
+        return;
+    }
+
+    // Fallback for non-configurable legacy keys
     switch (key) {
-        case VK_SPACE:
-            m_engine.togglePause();
+        case VK_OEM_4: // [
+            m_engine.setSubtitleDelay(m_engine.getSubtitleDelay() - 0.1);
+            showOsdMessage(L"Subtitle Delay: -100 ms");
             break;
-        case VK_LEFT:
-            m_engine.seekRelative(shift ? -30.0 : -5.0);
-            showOsdMessage(shift ? L"Seek: -30s" : L"Seek: -5s");
+        case VK_OEM_6: // ]
+            m_engine.setSubtitleDelay(m_engine.getSubtitleDelay() + 0.1);
+            showOsdMessage(L"Subtitle Delay: +100 ms");
             break;
-        case VK_RIGHT:
-            m_engine.seekRelative(shift ? 30.0 : 5.0);
-            showOsdMessage(shift ? L"Seek: +30s" : L"Seek: +5s");
-            break;
-        case VK_UP: {
-            int vol = rx::utils::clamp(m_engine.getVolume() + 5, 0, 100);
-            m_engine.setVolume(vol);
-            m_timelineStrip.setVolume(vol, m_engine.isMuted());
-            showOsdMessage(L"Volume: " + std::to_wstring(vol) + L"%");
-            break;
-        }
-        case VK_DOWN: {
-            int vol = rx::utils::clamp(m_engine.getVolume() - 5, 0, 100);
-            m_engine.setVolume(vol);
-            m_timelineStrip.setVolume(vol, m_engine.isMuted());
-            showOsdMessage(L"Volume: " + std::to_wstring(vol) + L"%");
-            break;
-        }
-        case 'M':
-            if (ctrl) toggleCompactMode();
-            else toggleMute();
-            break;
-        case 'T':
-            if (ctrl) toggleAlwaysOnTop();
-            break;
-        case 'P':
-            if (ctrl) showPreferencesDialog();
-            else togglePlaylistPanel();
-            break;
-        case VK_OEM_COMMA: // Ctrl+,
+        case VK_OEM_COMMA:
             if (ctrl) showPreferencesDialog();
             else m_engine.stepBackward();
             break;
-        case VK_OEM_PERIOD: // .
+        case VK_OEM_PERIOD:
             m_engine.stepForward();
-            break;
-        case 'V':
-            toggleVideoPanel();
-            break;
-        case 'A':
-            toggleAudioPanel();
-            break;
-        case 'O':
-            if (ctrl) openFileDialog();
-            else {
-                m_engine.toggleOsdStats();
-                showOsdMessage(L"OSD Statistics Toggled");
-            }
-            break;
-        case 'F':
-            if (ctrl && shift) openFolderDialog();
-            else toggleFullscreen();
-            break;
-        case VK_F11:
-            toggleFullscreen();
-            break;
-        case VK_ESCAPE:
-            if (m_isFullscreen) toggleFullscreen();
-            break;
-        case 'S':
-            if (ctrl) openSubtitleDialog();
-            else {
-                m_engine.stop();
-                m_btnPlay.setText(L"►");
-                m_titleBar.setMediaInfo(L"", L"RX Media Player");
-                if (m_videoHwnd) InvalidateRect(m_videoHwnd, nullptr, TRUE);
-            }
             break;
         case 'B':
             if (ctrl) openBookmarkDialog();
             else addQuickBookmark();
             break;
-        case 'I':
-        case VK_TAB:
-            showInfoDialog();
-            break;
         case 'U':
             if (ctrl) openUrlDialog();
             break;
-        case VK_PRIOR: { // Page Up
+        case 'V':
+            toggleVideoPanel();
+            break;
+        case VK_F11:
+            toggleFullscreen();
+            break;
+    }
+}
+
+void RXMainWindow::executeAction(PlayerAction action) {
+    switch (action) {
+        case PlayerAction::PlayPause: {
+            if (m_engine.getState() == PlaybackState::Playing) {
+                m_engine.pause();
+                m_btnPlay.setText(L"►");
+                showOsdMessage(L"Paused");
+            } else {
+                m_engine.play();
+                m_btnPlay.setText(L"⏸");
+                showOsdMessage(L"Playing");
+            }
+            break;
+        }
+        case PlayerAction::Stop: {
+            m_engine.stop();
+            m_btnPlay.setText(L"►");
+            m_titleBar.setMediaInfo(L"", L"RX Media Player");
+            if (m_videoHwnd) InvalidateRect(m_videoHwnd, nullptr, TRUE);
+            showOsdMessage(L"Stopped");
+            break;
+        }
+        case PlayerAction::SeekBeginning: {
+            m_engine.seek(0.0, true);
+            showOsdMessage(L"Beginning");
+            break;
+        }
+        case PlayerAction::SeekEnd: {
+            double dur = m_engine.getDuration();
+            if (dur > 1.0) m_engine.seek(dur - 0.5, true);
+            showOsdMessage(L"End of Video");
+            break;
+        }
+        case PlayerAction::SeekBackward5: {
+            m_engine.seekRelative(-5.0);
+            showOsdMessage(L"Backward 5 seconds");
+            break;
+        }
+        case PlayerAction::SeekForward5: {
+            m_engine.seekRelative(5.0);
+            showOsdMessage(L"Forward 5 seconds");
+            break;
+        }
+        case PlayerAction::SeekBackward30: {
+            m_engine.seekRelative(-30.0);
+            showOsdMessage(L"Backward 30 seconds");
+            break;
+        }
+        case PlayerAction::SeekForward30: {
+            m_engine.seekRelative(30.0);
+            showOsdMessage(L"Forward 30 seconds");
+            break;
+        }
+        case PlayerAction::SeekBackward60: {
+            m_engine.seekRelative(-60.0);
+            showOsdMessage(L"Backward 60 seconds");
+            break;
+        }
+        case PlayerAction::SeekForward60: {
+            m_engine.seekRelative(60.0);
+            showOsdMessage(L"Forward 60 seconds");
+            break;
+        }
+        case PlayerAction::PreviousFile: {
             auto prevItem = m_playlistMgr.previous();
             if (prevItem) {
                 m_engine.loadFile(prevItem->path, true);
-                m_playlistPanel->refresh();
+                if (m_playlistPanel) m_playlistPanel->refresh();
+                showOsdMessage(L"Previous: " + rx::utils::utf8ToWide(prevItem->title));
             }
             break;
         }
-        case VK_NEXT: { // Page Down
+        case PlayerAction::NextFile:
+        case PlayerAction::NextPlaylistItem: {
             auto nextItem = m_playlistMgr.next(true);
             if (nextItem) {
                 m_engine.loadFile(nextItem->path, true);
-                m_playlistPanel->refresh();
+                if (m_playlistPanel) m_playlistPanel->refresh();
+                showOsdMessage(L"Next: " + rx::utils::utf8ToWide(nextItem->title));
             }
             break;
         }
-        case VK_OEM_4: // [
-            m_engine.setSubtitleDelay(m_engine.getSubtitleDelay() - 0.1);
-            showOsdMessage(L"Subtitle Delay: -100ms");
+        case PlayerAction::TogglePlaylist: {
+            togglePlaylistPanel();
+            showOsdMessage((m_playlistPanel && m_playlistPanel->isVisible()) ? L"Playlist Opened" : L"Playlist Closed");
             break;
-        case VK_OEM_6: // ]
-            m_engine.setSubtitleDelay(m_engine.getSubtitleDelay() + 0.1);
-            showOsdMessage(L"Subtitle Delay: +100ms");
+        }
+        case PlayerAction::ToggleRepeat: {
+            auto mode = m_playlistMgr.getRepeatMode();
+            if (mode == RepeatMode::Off) {
+                m_playlistMgr.setRepeatMode(RepeatMode::RepeatAll);
+                showOsdMessage(L"Repeat: On");
+            } else if (mode == RepeatMode::RepeatAll) {
+                m_playlistMgr.setRepeatMode(RepeatMode::RepeatOne);
+                showOsdMessage(L"Repeat: Single Track");
+            } else {
+                m_playlistMgr.setRepeatMode(RepeatMode::Off);
+                showOsdMessage(L"Repeat: Off");
+            }
+            break;
+        }
+        case PlayerAction::ToggleShuffle: {
+            m_playlistMgr.shuffle();
+            if (m_playlistPanel) m_playlistPanel->refresh();
+            static bool s_shuffled = false;
+            s_shuffled = !s_shuffled;
+            showOsdMessage(s_shuffled ? L"Shuffle: On" : L"Shuffle: Off");
+            break;
+        }
+        case PlayerAction::VolumeUp5: {
+            int vol = rx::utils::clamp(m_engine.getVolume() + 5, 0, 100);
+            m_engine.setVolume(vol);
+            Settings::instance().audio.volume = vol;
+            m_timelineStrip.setVolume(vol, m_engine.isMuted());
+            showOsdMessage(L"Volume: " + std::to_wstring(vol) + L"%");
+            break;
+        }
+        case PlayerAction::VolumeDown5: {
+            int vol = rx::utils::clamp(m_engine.getVolume() - 5, 0, 100);
+            m_engine.setVolume(vol);
+            Settings::instance().audio.volume = vol;
+            m_timelineStrip.setVolume(vol, m_engine.isMuted());
+            showOsdMessage(L"Volume: " + std::to_wstring(vol) + L"%");
+            break;
+        }
+        case PlayerAction::VolumeUp1: {
+            int vol = rx::utils::clamp(m_engine.getVolume() + 1, 0, 100);
+            m_engine.setVolume(vol);
+            Settings::instance().audio.volume = vol;
+            m_timelineStrip.setVolume(vol, m_engine.isMuted());
+            showOsdMessage(L"Volume: " + std::to_wstring(vol) + L"%");
+            break;
+        }
+        case PlayerAction::VolumeDown1: {
+            int vol = rx::utils::clamp(m_engine.getVolume() - 1, 0, 100);
+            m_engine.setVolume(vol);
+            Settings::instance().audio.volume = vol;
+            m_timelineStrip.setVolume(vol, m_engine.isMuted());
+            showOsdMessage(L"Volume: " + std::to_wstring(vol) + L"%");
+            break;
+        }
+        case PlayerAction::MuteToggle: {
+            toggleMute();
+            break;
+        }
+        case PlayerAction::SpeedDown: {
+            double spd = m_engine.getSpeed() - 0.10;
+            if (spd < 0.25) spd = 0.25;
+            m_engine.setSpeed(spd);
+            wchar_t buf[64];
+            if (std::abs(spd - 1.0) < 0.01) {
+                swprintf_s(buf, L"Playback Speed: Normal (1.00x)");
+            } else {
+                swprintf_s(buf, L"Playback Speed: %.2fx", spd);
+            }
+            showOsdMessage(buf);
+            break;
+        }
+        case PlayerAction::SpeedUp: {
+            double spd = m_engine.getSpeed() + 0.10;
+            if (spd > 4.0) spd = 4.0;
+            m_engine.setSpeed(spd);
+            wchar_t buf[64];
+            if (std::abs(spd - 1.0) < 0.01) {
+                swprintf_s(buf, L"Playback Speed: Normal (1.00x)");
+            } else {
+                swprintf_s(buf, L"Playback Speed: %.2fx", spd);
+            }
+            showOsdMessage(buf);
+            break;
+        }
+        case PlayerAction::SpeedReset: {
+            m_engine.setSpeed(1.0);
+            showOsdMessage(L"Playback Speed: Normal (1.00x)");
+            break;
+        }
+        case PlayerAction::ToggleFullscreen: {
+            toggleFullscreen();
+            break;
+        }
+        case PlayerAction::ToggleAlwaysOnTop: {
+            toggleAlwaysOnTop();
+            break;
+        }
+        case PlayerAction::ZoomReset: {
+            m_engine.setZoom(1.0);
+            m_engine.setPan(0, 0);
+            showOsdMessage(L"Zoom Reset");
+            break;
+        }
+        case PlayerAction::ZoomIn: {
+            double curZoom = m_engine.getVideoAdjustments().zoom;
+            curZoom += 0.10;
+            if (curZoom > 4.0) curZoom = 4.0;
+            m_engine.setZoom(curZoom);
+            wchar_t buf[64];
+            swprintf_s(buf, L"Zoom: %d%%", static_cast<int>(std::round(curZoom * 100.0)));
+            showOsdMessage(buf);
+            break;
+        }
+        case PlayerAction::ZoomOut: {
+            double curZoom = m_engine.getVideoAdjustments().zoom;
+            curZoom -= 0.10;
+            if (curZoom < 0.20) curZoom = 0.20;
+            m_engine.setZoom(curZoom);
+            wchar_t buf[64];
+            swprintf_s(buf, L"Zoom: %d%%", static_cast<int>(std::round(curZoom * 100.0)));
+            showOsdMessage(buf);
+            break;
+        }
+        case PlayerAction::Rotate90: {
+            int rot = (m_engine.getVideoAdjustments().rotate + 90) % 360;
+            m_engine.setVideoRotate(rot);
+            showOsdMessage(L"Rotation: " + std::to_wstring(rot) + L"°");
+            break;
+        }
+        case PlayerAction::OpenFile: {
+            openFileDialog();
+            break;
+        }
+        case PlayerAction::OpenFolder: {
+            openFolderDialog();
+            break;
+        }
+        case PlayerAction::CycleAudioTrack: {
+            std::string name = m_engine.cycleAudioTrack();
+            if (name.empty()) {
+                showOsdMessage(L"No Additional Audio Tracks");
+            } else {
+                showOsdMessage(L"Audio Track: " + rx::utils::utf8ToWide(name));
+            }
+            break;
+        }
+        case PlayerAction::CycleSubtitleTrack: {
+            std::string name = m_engine.cycleSubtitleTrack();
+            if (name.empty()) {
+                showOsdMessage(L"No Subtitles Available");
+            } else {
+                showOsdMessage(L"Subtitle Track: " + rx::utils::utf8ToWide(name));
+            }
+            break;
+        }
+        case PlayerAction::ToggleSubtitles: {
+            bool vis = m_engine.toggleSubtitleVisibility();
+            showOsdMessage(vis ? L"Subtitles: On" : L"Subtitles: Off");
+            break;
+        }
+        case PlayerAction::SubtitleDelayDown: {
+            double delay = m_engine.getSubtitleDelay() - 0.10;
+            m_engine.setSubtitleDelay(delay);
+            int delayMs = static_cast<int>(std::round(delay * 1000.0));
+            wchar_t buf[64];
+            swprintf_s(buf, L"Subtitle Delay: %+d ms", delayMs);
+            showOsdMessage(buf);
+            break;
+        }
+        case PlayerAction::SubtitleDelayUp: {
+            double delay = m_engine.getSubtitleDelay() + 0.10;
+            m_engine.setSubtitleDelay(delay);
+            int delayMs = static_cast<int>(std::round(delay * 1000.0));
+            wchar_t buf[64];
+            swprintf_s(buf, L"Subtitle Delay: %+d ms", delayMs);
+            showOsdMessage(buf);
+            break;
+        }
+        case PlayerAction::LoadSubtitles: {
+            openSubtitleDialog();
+            break;
+        }
+        case PlayerAction::ShowDetailedInfo: {
+            m_engine.toggleOsdStats();
+            break;
+        }
+        case PlayerAction::ShowBriefInfo: {
+            double pos = m_engine.getCurrentPosition();
+            double dur = m_engine.getDuration();
+            std::string brief = rx::utils::formatTime(pos) + " / " + rx::utils::formatTime(dur);
+            showOsdMessage(rx::utils::utf8ToWide(brief));
+            break;
+        }
+        case PlayerAction::OpenPlaybackSystemInfo:
+        case PlayerAction::ShowFileInfo: {
+            showInfoDialog();
+            break;
+        }
+        case PlayerAction::OpenPreferences: {
+            showPreferencesDialog();
+            break;
+        }
+        case PlayerAction::CaptureScreenshot: {
+            takeScreenshot();
+            break;
+        }
+        case PlayerAction::OpenShortcutHelp: {
+            showShortcutHelpDialog();
+            break;
+        }
+        default:
             break;
     }
 }
@@ -1631,6 +1891,7 @@ LRESULT CALLBACK RXMainWindow::mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, L
                     case IDM_ALWAYS_ON_TOP:     pThis->toggleAlwaysOnTop(); break;
                     case IDM_MEDIA_INFO:        pThis->showInfoDialog(); break;
                     case IDM_PREFERENCES:       pThis->showPreferencesDialog(); break;
+                    case IDM_SHORTCUT_HELP:     pThis->showShortcutHelpDialog(); break;
                     case IDM_ABOUT:             pThis->showAboutDialog(); break;
                 }
                 return 0;
@@ -1660,6 +1921,7 @@ LRESULT CALLBACK RXMainWindow::mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, L
                 s.window.width = wr.right - wr.left;
                 s.window.height = wr.bottom - wr.top;
                 s.window.maximized = IsZoomed(hwnd);
+                ShortcutManager::instance().saveToSettings(s);
                 s.save();
 
                 PostQuitMessage(0);

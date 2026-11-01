@@ -10,6 +10,8 @@
 #include "dialogs/open_url_dialog.hpp"
 #include "dialogs/bookmark_dialog.hpp"
 #include "dialogs/preferences_dialog.hpp"
+#include "dialogs/shortcut_help_dialog.hpp"
+#include "../core/shortcut_manager.hpp"
 #include "../engine/mpv_backend.hpp"
 #include "../playlist/playlist_manager.hpp"
 #include <windows.h>
@@ -55,7 +57,9 @@ private:
     void toggleAudioPanel();
     void showInfoDialog();
     void showPreferencesDialog();
+    void showShortcutHelpDialog();
     void showAboutDialog();
+    void executeAction(PlayerAction action);
     void showContextMenu(int screenX, int screenY);
     void showMainMenu(int screenX, int screenY);
     void toggleCompactMode();
@@ -113,6 +117,7 @@ private:
     std::unique_ptr<RXOpenUrlDialog> m_urlDialog;
     std::unique_ptr<RXBookmarkDialog> m_bmDialog;
     std::unique_ptr<RXPreferencesDialog> m_prefsDialog;
+    std::unique_ptr<RXShortcutHelpDialog> m_shortcutHelpDialog;
 
     // State
     bool m_isFullscreen = false;

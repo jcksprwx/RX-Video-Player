@@ -43,6 +43,15 @@ bool MpvBackend::initialize(HWND videoHostHwnd) {
         return false;
     }
 
+    // Configure OSD styling
+    mpv_set_property_string(m_mpv, "osd-font", "Segoe UI");
+    mpv_set_property_string(m_mpv, "osd-font-size", "28");
+    mpv_set_property_string(m_mpv, "osd-color", "#FFFFFFFF");
+    mpv_set_property_string(m_mpv, "osd-border-color", "#FF000000");
+    mpv_set_property_string(m_mpv, "osd-border-size", "2.0");
+    mpv_set_property_string(m_mpv, "osd-shadow-offset", "1.5");
+    mpv_set_property_string(m_mpv, "osd-duration", "2000");
+
     // Observe properties
     mpv_observe_property(m_mpv, 1, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 2, "duration", MPV_FORMAT_DOUBLE);
@@ -367,6 +376,76 @@ void MpvBackend::toggleOsdStats() {
     mpv_command_async(m_mpv, 0, cmd);
 }
 
+void MpvBackend::showOsd(const std::string& text, int durationMs) {
+    if (!m_mpv) return;
+    std::string durStr = std::to_string(durationMs);
+    const char* cmd[] = { "show-text", text.c_str(), durStr.c_str(), nullptr };
+    mpv_command_async(m_mpv, 0, cmd);
+}
+
+std::vector<MediaTrack> MpvBackend::getAudioTracks() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    std::vector<MediaTrack> res;
+    for (const auto& t : m_mediaInfo.tracks) {
+        if (t.type == "audio") {
+            res.push_back(t);
+        }
+    }
+    return res;
+}
+
+std::string MpvBackend::cycleAudioTrack() {
+    auto tracks = getAudioTracks();
+    if (tracks.empty()) return "";
+    if (tracks.size() == 1) {
+        return tracks[0].title.empty() ? (tracks[0].lang.empty() ? "Default Audio" : tracks[0].lang) : tracks[0].title;
+    }
+
+    int currentId = 1;
+    for (const auto& t : tracks) {
+        if (t.selected) {
+            currentId = t.id;
+            break;
+        }
+    }
+
+    size_t nextIdx = 0;
+    for (size_t i = 0; i < tracks.size(); ++i) {
+        if (tracks[i].id == currentId) {
+            nextIdx = (i + 1) % tracks.size();
+            break;
+        }
+    }
+
+    selectAudioTrack(tracks[nextIdx].id);
+    std::string name = tracks[nextIdx].title.empty() ? (tracks[nextIdx].lang.empty() ? "Track " + std::to_string(tracks[nextIdx].id) : tracks[nextIdx].lang) : tracks[nextIdx].title;
+    return name;
+}
+
+std::string MpvBackend::cycleSubtitleTrack() {
+    auto tracks = getSubtitleTracks();
+    if (tracks.empty()) return "";
+
+    int currentId = m_selectedSubTrack;
+    size_t nextIdx = 0;
+    for (size_t i = 0; i < tracks.size(); ++i) {
+        if (tracks[i].id == currentId) {
+            nextIdx = (i + 1) % tracks.size();
+            break;
+        }
+    }
+
+    selectSubtitleTrack(tracks[nextIdx].id);
+    std::string name = tracks[nextIdx].title.empty() ? (tracks[nextIdx].lang.empty() ? "Subtitle " + std::to_string(tracks[nextIdx].id) : tracks[nextIdx].lang) : tracks[nextIdx].title;
+    return name;
+}
+
+bool MpvBackend::toggleSubtitleVisibility() {
+    m_subtitlesVisible = !m_subtitlesVisible;
+    setSubtitlesVisible(m_subtitlesVisible);
+    return m_subtitlesVisible;
+}
+
 DiagnosticsReport MpvBackend::getDiagnostics() const {
     DiagnosticsReport r;
     if (!m_mpv) return r;
@@ -471,6 +550,7 @@ void MpvBackend::setAspectRatio(const std::string& ratio) {
 
 void MpvBackend::setVideoRotate(int degrees) {
     if (!m_mpv) return;
+    m_adjParams.rotate = degrees;
     mpv_set_property_string(m_mpv, "video-rotate", std::to_string(degrees).c_str());
 }
 

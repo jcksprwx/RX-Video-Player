@@ -1,7 +1,7 @@
 # RX Media Player
 
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(64--bit)-0078D6?style=flat-square&logo=windows)](https://microsoft.com/windows)
-[![Version: 2.2.0](https://img.shields.io/badge/Version-2.2.0-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.2.0)
+[![Version: 2.3.0](https://img.shields.io/badge/Version-2.3.0-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.3.0)
 [![Author: Rituraj](https://img.shields.io/badge/Author-Rituraj-blueviolet?style=flat-square)](https://github.com/jcksprwx)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![C++: 20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=c%2B%2B)](https://en.cppreference.com/w/cpp/20)
@@ -87,28 +87,46 @@ Legacy Windows media players are often cluttered with outdated interfaces, slugg
 
 ---
 
-## ⌨️ Keyboard Shortcuts Reference
+## ⌨️ Keyboard Shortcuts & OSD Reference (v2.3.0)
 
-| Shortcut | Action |
-|:---|:---|
-| **Space** | Play / Pause |
-| **Left / Right Arrow** | Seek backward / forward 5 seconds |
-| **Up / Down Arrow** | Volume up / down 5% |
-| **M** | Mute / Unmute audio |
-| **F / F11** | Toggle Borderless Fullscreen mode |
-| **Escape** | Exit Fullscreen mode |
-| **V** | Toggle Video Picture Adjustments panel |
-| **A** | Toggle Audio & Equalizer panel |
-| **P** | Toggle Playlist panel |
-| **I / Tab** | Open Media Diagnostics dialog |
-| **O** | Toggle On-Screen Display (OSD) playback stats |
-| **Ctrl + O** | Open File dialog |
-| **Ctrl + U** | Open Network Stream / URL dialog |
-| **Ctrl + B** | Open Scene Bookmarks dialog |
-| **B** | Quick-add bookmark at current position |
-| **[ / ]** | Adjust subtitle delay (-100ms / +100ms) |
-| **. / ,** | Step one frame forward / backward |
-| **S** | Capture high-resolution screenshot to Pictures |
+Every keyboard shortcut executes instantly and displays real-time On-Screen Display (OSD) feedback directly over the video presentation canvas. Shortcuts are fully configurable in **Preferences (`F5`)** under the Keyboard Shortcuts tab, with searchable reference in **Help → Keyboard Shortcuts (`F1`)**.
+
+| Category | Shortcut | Action | OSD Feedback |
+| :--- | :--- | :--- | :--- |
+| **Playback** | **Space** | Play / Pause | `Playing` / `Paused` |
+| | **S** | Stop Playback | `Stopped` |
+| | **Home** | Seek to Beginning | `Beginning` |
+| | **End** | Seek to End | `End of Video` |
+| **Seeking** | **Left / Right** | Seek backward / forward 5s | `Backward 5 seconds` / `Forward 5 seconds` |
+| | **Ctrl + Left / Right** | Seek backward / forward 30s | `Backward 30 seconds` / `Forward 30 seconds` |
+| | **Shift + Left / Right**| Seek backward / forward 1m | `Backward 60 seconds` / `Forward 60 seconds` |
+| **Volume** | **Up / Down** | Adjust volume (±5%) | `Volume: 65%` |
+| | **Ctrl + Up / Down** | Fine volume adjustment (±1%) | `Volume: 61%` |
+| | **M** | Mute / Unmute audio | `Muted` / `Volume: 60%` |
+| **Speed** | **X** | Decrease speed (-0.10x) | `Playback Speed: 0.90x` |
+| | **C** | Increase speed (+0.10x) | `Playback Speed: 1.10x` |
+| | **Z** | Reset speed to normal | `Playback Speed: Normal (1.00x)` |
+| **Video & Window** | **Enter / F / F11** | Toggle Fullscreen | `Fullscreen` / `Windowed Mode` |
+| | **Ctrl + T** | Toggle Always-on-Top | `Always on Top: On` / `Off` |
+| | **Ctrl + 0** | Reset Zoom | `Zoom Reset` |
+| | **Ctrl + Plus / Minus** | Zoom In / Out (±10%) | `Zoom: 110%` / `Zoom: 90%` |
+| | **Ctrl + R** | Rotate Video 90° Clockwise | `Rotation: 90°` |
+| **Audio & Subtitles** | **A** | Cycle Audio Streams | `Audio Track: <Track Name>` |
+| | **L** | Cycle Subtitle Streams | `Subtitle Track: <Track Name>` |
+| | **Alt + L** | Toggle Subtitle Visibility | `Subtitles: On` / `Subtitles: Off` |
+| | **Alt + Left / Right** | Nudge Subtitle Delay (±100ms) | `Subtitle Delay: -100 ms` |
+| | **Ctrl + Shift + S** | Load External Subtitles | `Subtitles Loaded` |
+| **Playlist** | **Page Up / Page Down** | Previous / Next File | `Previous: <Name>` / `Next: <Name>` |
+| | **Ctrl + N** | Open Next Playlist Item | `Next: <Name>` |
+| | **Ctrl + P / F6** | Toggle Playlist Panel | `Playlist Opened` / `Playlist Closed` |
+| | **Ctrl + B** | Toggle Repeat Mode | `Repeat: On` / `Repeat: Off` |
+| | **Ctrl + H** | Toggle Shuffle Mode | `Shuffle: On` / `Shuffle: Off` |
+| **Information** | **Tab** | Toggle Detailed Telemetry OSD | Full On-Screen Overlay |
+| | **Shift + Tab** | Brief Timestamp Overlay | `00:12:35 / 01:45:20` |
+| | **Ctrl + F1 / Ctrl + I** | Playback & System Info Dialog | Technical Diagnostics Window |
+| | **Ctrl + C** | Capture Video Screenshot | `Screenshot Saved` |
+| **Application** | **F1** | Keyboard Shortcuts Help | Searchable Shortcut Reference |
+| | **F5** | Preferences Dialog | Configurable Settings & Keybinder |
 
 ---
 

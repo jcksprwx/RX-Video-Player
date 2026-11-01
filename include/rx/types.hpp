@@ -7,7 +7,7 @@
 
 namespace rx {
 
-inline constexpr const char* kAppVersion = "2.2.0";
+inline constexpr const char* kAppVersion = "2.3.0";
 inline constexpr const char* kAppAuthor  = "Rituraj";
 inline constexpr const char* kAppName    = "RX Media Player";
 

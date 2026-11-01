@@ -3,6 +3,7 @@
 #include "../src/playlist/playlist_manager.hpp"
 #include "../src/audio/equalizer.hpp"
 #include "../src/library/media_database.hpp"
+#include "../src/core/shortcut_manager.hpp"
 #include <iostream>
 #include <cassert>
 #include <filesystem>
@@ -375,6 +376,78 @@ void testMediaDatabase() {
     std::cout << "  -> testMediaDatabase PASSED!" << std::endl;
 }
 
+void testShortcuts() {
+    std::cout << "[TEST] Running testShortcuts..." << std::endl;
+
+    auto& sm = rx::ShortcutManager::instance();
+    sm.restoreDefaults();
+
+    // Verify lookup of default actions
+    assert(sm.findAction(VK_SPACE, false, false, false) == rx::PlayerAction::PlayPause);
+    assert(sm.findAction('S', false, false, false) == rx::PlayerAction::Stop);
+    assert(sm.findAction(VK_LEFT, false, false, false) == rx::PlayerAction::SeekBackward5);
+    assert(sm.findAction(VK_RIGHT, false, false, false) == rx::PlayerAction::SeekForward5);
+    assert(sm.findAction(VK_LEFT, true, false, false) == rx::PlayerAction::SeekBackward30);
+    assert(sm.findAction(VK_RIGHT, true, false, false) == rx::PlayerAction::SeekForward30);
+    assert(sm.findAction(VK_LEFT, false, true, false) == rx::PlayerAction::SeekBackward60);
+    assert(sm.findAction(VK_RIGHT, false, true, false) == rx::PlayerAction::SeekForward60);
+    assert(sm.findAction(VK_UP, false, false, false) == rx::PlayerAction::VolumeUp5);
+    assert(sm.findAction(VK_DOWN, false, false, false) == rx::PlayerAction::VolumeDown5);
+    assert(sm.findAction(VK_UP, true, false, false) == rx::PlayerAction::VolumeUp1);
+    assert(sm.findAction(VK_DOWN, true, false, false) == rx::PlayerAction::VolumeDown1);
+    assert(sm.findAction('M', false, false, false) == rx::PlayerAction::MuteToggle);
+    assert(sm.findAction('X', false, false, false) == rx::PlayerAction::SpeedDown);
+    assert(sm.findAction('C', false, false, false) == rx::PlayerAction::SpeedUp);
+    assert(sm.findAction('Z', false, false, false) == rx::PlayerAction::SpeedReset);
+    assert(sm.findAction('F', false, false, false) == rx::PlayerAction::ToggleFullscreen);
+    assert(sm.findAction(VK_RETURN, false, false, false) == rx::PlayerAction::ToggleFullscreen);
+    assert(sm.findAction('T', true, false, false) == rx::PlayerAction::ToggleAlwaysOnTop);
+    assert(sm.findAction('O', true, false, false) == rx::PlayerAction::OpenFile);
+    assert(sm.findAction('O', true, true, false) == rx::PlayerAction::OpenFolder);
+    assert(sm.findAction('P', true, false, false) == rx::PlayerAction::TogglePlaylist);
+    assert(sm.findAction(VK_F6, false, false, false) == rx::PlayerAction::TogglePlaylist);
+    assert(sm.findAction('B', true, false, false) == rx::PlayerAction::ToggleRepeat);
+    assert(sm.findAction('H', true, false, false) == rx::PlayerAction::ToggleShuffle);
+    assert(sm.findAction('A', false, false, false) == rx::PlayerAction::CycleAudioTrack);
+    assert(sm.findAction('L', false, false, false) == rx::PlayerAction::CycleSubtitleTrack);
+    assert(sm.findAction('L', false, false, true) == rx::PlayerAction::ToggleSubtitles);
+    assert(sm.findAction(VK_LEFT, false, false, true) == rx::PlayerAction::SubtitleDelayDown);
+    assert(sm.findAction(VK_RIGHT, false, false, true) == rx::PlayerAction::SubtitleDelayUp);
+    assert(sm.findAction('S', true, true, false) == rx::PlayerAction::LoadSubtitles);
+    assert(sm.findAction(VK_TAB, false, false, false) == rx::PlayerAction::ShowDetailedInfo);
+    assert(sm.findAction(VK_TAB, false, true, false) == rx::PlayerAction::ShowBriefInfo);
+    assert(sm.findAction(VK_F1, true, false, false) == rx::PlayerAction::OpenPlaybackSystemInfo);
+    assert(sm.findAction(VK_F5, false, false, false) == rx::PlayerAction::OpenPreferences);
+    assert(sm.findAction(VK_F1, false, false, false) == rx::PlayerAction::OpenShortcutHelp);
+
+    // Serialization & Parsing
+    rx::ShortcutBinding b1{ 'K', true, false, false };
+    std::wstring b1Str = b1.toString();
+    assert(b1Str == L"Ctrl + K");
+    rx::ShortcutBinding b1Parsed = rx::ShortcutBinding::fromString(b1Str);
+    assert(b1Parsed == b1);
+    (void)b1Parsed;
+
+    // Conflict detection
+    rx::ShortcutBinding spaceBinding{ VK_SPACE, false, false, false };
+    rx::PlayerAction conflict = sm.checkConflict(spaceBinding, rx::PlayerAction::Stop);
+    assert(conflict == rx::PlayerAction::PlayPause);
+    (void)conflict;
+
+    // Custom re-binding
+    rx::ShortcutBinding customBinding{ 'K', true, true, false };
+    bool ok = sm.setPrimaryBinding(rx::PlayerAction::PlayPause, customBinding);
+    assert(ok);
+    assert(sm.findAction('K', true, true, false) == rx::PlayerAction::PlayPause);
+    (void)ok;
+
+    // Reset to defaults
+    sm.restoreDefaults();
+    assert(sm.findAction(VK_SPACE, false, false, false) == rx::PlayerAction::PlayPause);
+
+    std::cout << "  -> testShortcuts PASSED!" << std::endl;
+}
+
 int main() {
     std::cout << "========================================" << std::endl;
     std::cout << "RX Media Player Automated Test Runner" << std::endl;
@@ -388,6 +461,7 @@ int main() {
     testAudioEqualizer();
     testSubtitleAndStreaming();
     testMediaDatabase();
+    testShortcuts();
 
     std::cout << "========================================" << std::endl;
     std::cout << "ALL TESTS PASSED SUCCESSFULLY!" << std::endl;
