@@ -404,6 +404,12 @@ DiagnosticsReport MpvBackend::getDiagnostics() const {
     char* vo = mpv_get_property_string(m_mpv, "current-vo");
     if (vo) { r.voDriver = vo; mpv_free(vo); }
 
+    int64_t outW = 0, outH = 0;
+    if (mpv_get_property(m_mpv, "video-out-params/w", MPV_FORMAT_INT64, &outW) >= 0) r.outVideoWidth = static_cast<int>(outW);
+    if (mpv_get_property(m_mpv, "video-out-params/h", MPV_FORMAT_INT64, &outH) >= 0) r.outVideoHeight = static_cast<int>(outH);
+    char* outPix = mpv_get_property_string(m_mpv, "video-out-params/pixelformat");
+    if (outPix) { r.outPixelFormat = outPix; mpv_free(outPix); }
+
     char* ac = mpv_get_property_string(m_mpv, "audio-codec-name");
     if (ac) { r.audioCodec = ac; mpv_free(ac); }
 
@@ -411,11 +417,25 @@ DiagnosticsReport MpvBackend::getDiagnostics() const {
     if (mpv_get_property(m_mpv, "audio-params/samplerate", MPV_FORMAT_INT64, &sr) >= 0) r.audioSampleRate = static_cast<int>(sr);
     if (mpv_get_property(m_mpv, "audio-params/channel-count", MPV_FORMAT_INT64, &ch) >= 0) r.audioChannels = static_cast<int>(ch);
 
+    char* ach = mpv_get_property_string(m_mpv, "audio-params/channels");
+    if (ach) { r.audioChannelLayout = ach; mpv_free(ach); }
+
+    char* afmt = mpv_get_property_string(m_mpv, "audio-params/format");
+    if (afmt) { r.audioFormat = afmt; mpv_free(afmt); }
+
     int64_t aBitrate = 0;
     if (mpv_get_property(m_mpv, "audio-bitrate", MPV_FORMAT_INT64, &aBitrate) >= 0) r.audioBitrateBps = aBitrate;
 
     char* ao = mpv_get_property_string(m_mpv, "current-ao");
     if (ao) { r.aoDriver = ao; mpv_free(ao); }
+
+    int64_t outSr = 0, outCh = 0;
+    if (mpv_get_property(m_mpv, "audio-out-params/samplerate", MPV_FORMAT_INT64, &outSr) >= 0) r.outAudioSampleRate = static_cast<int>(outSr);
+    if (mpv_get_property(m_mpv, "audio-out-params/channel-count", MPV_FORMAT_INT64, &outCh) >= 0) r.outAudioChannels = static_cast<int>(outCh);
+    char* outAch = mpv_get_property_string(m_mpv, "audio-out-params/channels");
+    if (outAch) { r.outAudioChannelLayout = outAch; mpv_free(outAch); }
+    char* outAfmt = mpv_get_property_string(m_mpv, "audio-out-params/format");
+    if (outAfmt) { r.outAudioFormat = outAfmt; mpv_free(outAfmt); }
 
     int64_t drops = 0, voDrops = 0, mistimed = 0;
     if (mpv_get_property(m_mpv, "drop-frame-count", MPV_FORMAT_INT64, &drops) >= 0) r.droppedFrames = drops;
@@ -425,6 +445,20 @@ DiagnosticsReport MpvBackend::getDiagnostics() const {
     double avSync = 0.0, dispFps = 0.0;
     if (mpv_get_property(m_mpv, "avsync", MPV_FORMAT_DOUBLE, &avSync) >= 0) r.avSyncDiffSec = avSync;
     if (mpv_get_property(m_mpv, "estimated-vf-fps", MPV_FORMAT_DOUBLE, &dispFps) >= 0) r.estimatedVfFps = dispFps;
+
+    r.tracks = m_mediaInfo.tracks;
+
+    static const char* kMetaKeys[] = {
+        "title", "artist", "album", "year", "date", "genre", "comment", "encoder", "copyright", nullptr
+    };
+    for (int i = 0; kMetaKeys[i]; ++i) {
+        std::string prop = std::string("metadata/by-key/") + kMetaKeys[i];
+        char* val = mpv_get_property_string(m_mpv, prop.c_str());
+        if (val) {
+            r.metadata.push_back({ kMetaKeys[i], val });
+            mpv_free(val);
+        }
+    }
 
     return r;
 }

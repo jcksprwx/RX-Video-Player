@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(RXMediaPlayer
-    VERSION 2.1.0
+    VERSION 2.2.0
     DESCRIPTION "RX Media Player - Native Windows 64-bit Multimedia Player by Rituraj"
     LANGUAGES C CXX
 )
@@ -72,6 +72,8 @@ target_link_libraries(rx_player PRIVATE
     gdi32
     user32
     kernel32
+    dxgi
+    psapi
 )
 
 add_custom_command(TARGET rx_player POST_BUILD

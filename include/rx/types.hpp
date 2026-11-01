@@ -7,7 +7,7 @@
 
 namespace rx {
 
-inline constexpr const char* kAppVersion = "2.1.0";
+inline constexpr const char* kAppVersion = "2.2.0";
 inline constexpr const char* kAppAuthor  = "Rituraj";
 inline constexpr const char* kAppName    = "RX Media Player";
 
@@ -137,7 +137,7 @@ struct DiagnosticsReport {
     double durationSec = 0.0;
     double currentPositionSec = 0.0;
 
-    // Video
+    // Video Input
     std::string videoCodec;
     int videoWidth = 0;
     int videoHeight = 0;
@@ -147,12 +147,26 @@ struct DiagnosticsReport {
     std::string hwdecActive;
     std::string voDriver;
 
-    // Audio
+    // Video Output / Renderer
+    int outVideoWidth = 0;
+    int outVideoHeight = 0;
+    std::string outPixelFormat;
+
+    // Audio Input
     std::string audioCodec;
     int audioSampleRate = 0;
     int audioChannels = 0;
+    std::string audioChannelLayout;
+    std::string audioFormat;
     int64_t audioBitrateBps = 0;
     std::string aoDriver;
+
+    // Audio Output / Renderer
+    int outAudioSampleRate = 0;
+    int outAudioChannels = 0;
+    std::string outAudioChannelLayout;
+    std::string outAudioFormat;
+    int64_t outAudioBitrateBps = 0;
 
     // Performance & Stats
     int64_t droppedFrames = 0;
@@ -161,42 +175,65 @@ struct DiagnosticsReport {
     double avSyncDiffSec = 0.0;
     double estimatedVfFps = 0.0;
 
+    // Active tracks & metadata
+    std::vector<MediaTrack> tracks;
+    std::vector<std::pair<std::string, std::string>> metadata;
+
     std::string formatReport() const {
         std::ostringstream ss;
-        ss << "==================================================\n";
-        ss << "  " << kAppName << " v" << kAppVersion << " Diagnostic Report\n";
+        ss << "======================================================================\n";
+        ss << "  " << kAppName << " v" << kAppVersion << " Diagnostics & Media Information\n";
         ss << "  Author: " << kAppAuthor << "\n";
-        ss << "==================================================\n\n";
-        ss << "[File Information]\n";
-        ss << "  File: " << filename << "\n";
-        ss << "  Path: " << fullPath << "\n";
-        ss << "  Container: " << container << "\n";
-        ss << "  Size: " << (fileSize / (1024.0 * 1024.0)) << " MB\n";
-        ss << "  Duration: " << durationSec << " s (Pos: " << currentPositionSec << " s)\n\n";
+        ss << "======================================================================\n\n";
 
-        ss << "[Video Stream]\n";
-        ss << "  Codec: " << videoCodec << "\n";
-        ss << "  Resolution: " << videoWidth << " x " << videoHeight << "\n";
-        ss << "  Frame Rate: " << videoFps << " fps\n";
-        ss << "  Pixel Format: " << pixelFormat << "\n";
-        ss << "  Bitrate: " << (videoBitrateBps / 1000) << " kbps\n";
+        ss << "[1. Playback Information]\n";
+        ss << "  Video Decoder: " << (hwdecActive.empty() || hwdecActive == "no" ? "Built-in Video Codec/Transform (ffmpeg)" : "Hardware Accelerated: D3D11VA (" + hwdecActive + ")") << "\n";
+        ss << "  Video Codec: " << (videoCodec.empty() ? "N/A" : videoCodec) << "\n";
+        ss << "  Video Input Type: " << (pixelFormat.empty() ? "N/A" : pixelFormat) << "\n";
+        ss << "  Video Input Size: " << videoWidth << " x " << videoHeight << "\n";
+        ss << "  Video Output Type: " << (outPixelFormat.empty() ? "Direct3D 11 NV12" : outPixelFormat) << "\n";
+        ss << "  Video Output Size: " << (outVideoWidth > 0 ? outVideoWidth : videoWidth) << " x " << (outVideoHeight > 0 ? outVideoHeight : videoHeight) << "\n";
+        ss << "  Source FPS: " << videoFps << " fps\n";
+        ss << "  Actual FPS: " << estimatedVfFps << " fps\n";
+        ss << "  Video Bitrate: " << (videoBitrateBps > 0 ? std::to_string(videoBitrateBps / 1000) + " kbps" : "Variable / N/A") << "\n";
         ss << "  Active Decoder: " << hwdecActive << "\n";
         ss << "  Video Output: " << voDriver << "\n\n";
 
-        ss << "[Audio Stream]\n";
-        ss << "  Codec: " << audioCodec << "\n";
-        ss << "  Channels: " << audioChannels << "\n";
-        ss << "  Sample Rate: " << audioSampleRate << " Hz\n";
-        ss << "  Bitrate: " << (audioBitrateBps / 1000) << " kbps\n";
+        ss << "  Audio Decoder: Built-in Audio Decoder (ffmpeg)\n";
+        ss << "  Audio Codec: " << (audioCodec.empty() ? "N/A" : audioCodec) << "\n";
+        ss << "  Sample Rate: " << audioSampleRate << " Hz -> " << (outAudioSampleRate > 0 ? outAudioSampleRate : audioSampleRate) << " Hz\n";
+        ss << "  Channels: " << audioChannels << " (" << (audioChannelLayout.empty() ? (audioChannels == 2 ? "Stereo" : (audioChannels == 6 ? "5.1" : "Multi")) : audioChannelLayout) << ") -> " << (outAudioChannels > 0 ? outAudioChannels : audioChannels) << " channels\n";
+        ss << "  Audio Bitrate: " << (audioBitrateBps > 0 ? std::to_string(audioBitrateBps / 1000) + " kbps" : "N/A") << "\n";
+        ss << "  Audio Format: " << (audioFormat.empty() ? "16-bit PCM" : audioFormat) << "\n";
         ss << "  Audio Output: " << aoDriver << "\n\n";
 
-        ss << "[Performance & Sync]\n";
+        ss << "[2. File Information]\n";
+        ss << "  File: " << filename << "\n";
+        ss << "  Path: " << fullPath << "\n";
+        ss << "  Container: " << container << "\n";
+        ss << "  Size: " << (fileSize / (1024.0 * 1024.0)) << " MB (" << fileSize << " bytes)\n";
+        ss << "  Duration: " << durationSec << " s (Pos: " << currentPositionSec << " s)\n";
+        if (!tracks.empty()) {
+            ss << "  Streams:\n";
+            for (const auto& tr : tracks) {
+                ss << "    Stream #" << tr.id << " [" << tr.type << "]: " << tr.codec << " (" << (tr.title.empty() ? tr.lang : tr.title) << ")" << (tr.selected ? " [Selected]" : "") << "\n";
+            }
+        }
+        if (!metadata.empty()) {
+            ss << "  Tags:\n";
+            for (const auto& md : metadata) {
+                ss << "    " << md.first << ": " << md.second << "\n";
+            }
+        }
+        ss << "\n";
+
+        ss << "[3. Performance & System Telemetry]\n";
         ss << "  Decoder Dropped Frames: " << droppedFrames << "\n";
         ss << "  VO Dropped Frames: " << voDroppedFrames << "\n";
         ss << "  Mistimed Frames: " << mistimedFrames << "\n";
         ss << "  A/V Sync Offset: " << (avSyncDiffSec * 1000.0) << " ms\n";
         ss << "  Display Frame Rate: " << estimatedVfFps << " fps\n";
-        ss << "==================================================\n";
+        ss << "======================================================================\n";
         return ss.str();
     }
 };

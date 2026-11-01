@@ -1078,6 +1078,8 @@ void RXMainWindow::showContextMenu(int screenX, int screenY) {
     AppendMenuW(hSubRepeat, MF_STRING, IDM_REPEAT_ALL, L"Repeat All");
     AppendMenuW(hSubRepeat, MF_STRING, IDM_REPEAT_ONE, L"Repeat Current");
     AppendMenuW(hSubPlayback, MF_POPUP, (UINT_PTR)hSubRepeat, L"Repeat Mode");
+    AppendMenuW(hSubPlayback, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(hSubPlayback, MF_STRING, IDM_MEDIA_INFO, L"Playback / System Information...\tCtrl+I");
     AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hSubPlayback, L"Playback");
 
     // 3. Navigation
@@ -1129,7 +1131,7 @@ void RXMainWindow::showContextMenu(int screenX, int screenY) {
     AppendMenuW(hSubView, MF_STRING, IDM_COMPACT_MODE, m_isCompactMode ? L"Standard Window Mode\tCtrl+M" : L"Compact Mini Mode\tCtrl+M");
     AppendMenuW(hSubView, MF_STRING, IDM_ALWAYS_ON_TOP, m_alwaysOnTop ? L"Always On Top [Enabled]\tCtrl+T" : L"Always On Top [Disabled]\tCtrl+T");
     AppendMenuW(hSubView, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(hSubView, MF_STRING, IDM_MEDIA_INFO, L"Media Information & Diagnostics...\tCtrl+I");
+    AppendMenuW(hSubView, MF_STRING, IDM_MEDIA_INFO, L"Playback / System Information...\tCtrl+I");
     AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hSubView, L"View");
 
     AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);

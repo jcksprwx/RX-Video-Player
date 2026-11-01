@@ -1,7 +1,7 @@
 # RX Media Player
 
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(64--bit)-0078D6?style=flat-square&logo=windows)](https://microsoft.com/windows)
-[![Version: 2.1.0](https://img.shields.io/badge/Version-2.1.0-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.1.0)
+[![Version: 2.2.0](https://img.shields.io/badge/Version-2.2.0-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.2.0)
 [![Author: Rituraj](https://img.shields.io/badge/Author-Rituraj-blueviolet?style=flat-square)](https://github.com/jcksprwx)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![C++: 20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=c%2B%2B)](https://en.cppreference.com/w/cpp/20)
@@ -55,7 +55,11 @@ Legacy Windows media players are often cluttered with outdated interfaces, slugg
 ### 🎨 Picture Adjustments & Real-Time Diagnostics
 - **Color Correction:** Real-time Brightness, Contrast, Saturation, Gamma, and Hue adjustment sliders (-100 to +100).
 - **Transformations:** Aspect ratio presets (`Auto`, `16:9`, `4:3`, `21:9`), 90°/180°/270° video rotation, horizontal/vertical flipping, and zoom (0.2x to 4.0x).
-- **Diagnostics Window (`I` / `Tab`):** Comprehensive telemetry dialog reporting active hardware decoder, video/audio bitrates, FPS, dropped frame counts, and A/V sync offset.
+- **Playback / System Information Window (`Ctrl+I` / `Tab`):** Comprehensive 3-tab technical diagnostics utility inspired by professional Windows diagnostic tools:
+  - **Playback Info:** Real-time video/audio decoders, input/output resolutions, pixel formats, bitrates, actual display FPS, scrollable active filter/pipeline list, and animated audio input level meters (FL, FR, C, LFE, SL, SR).
+  - **File Info:** Exhaustive metadata inspector displaying container format, byte sizes, durations, video/audio stream properties, subtitle track listings, and embedded ID3/Vorbis/MKV tags with full selection and copy support.
+  - **System Info:** Grounded environment telemetry including Windows build number, CPU topology, DirectX 11 GPU adapter enumeration (Dedicated VRAM), active hardware decoder, WASAPI audio device, process memory usage, and dropped frame counters.
+  - **Fixed Action Bar:** One-click "Copy to Clipboard" with formatted diagnostic reports and "Always on top" pinning.
 - **On-Screen Statistics (`O`):** Hardware-accelerated OSD overlay for real-time performance inspection.
 
 ### 🎵 Advanced Audio System & WASAPI

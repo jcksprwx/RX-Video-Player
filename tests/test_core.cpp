@@ -159,12 +159,21 @@ void testDiagnostics() {
     r.audioChannels = 6;
     r.audioSampleRate = 48000;
     r.droppedFrames = 0;
+    r.outVideoWidth = 3840;
+    r.outVideoHeight = 2160;
+    r.outPixelFormat = "Direct3D 11 NV12";
+    r.audioChannelLayout = "5.1(side)";
+    r.tracks.push_back({ 1, "video", "4K HDR", "eng", "hevc", true, false });
+    r.tracks.push_back({ 2, "audio", "Surround 5.1", "eng", "flac", true, false });
+    r.metadata.push_back({ "title", "Test Video 4K" });
 
     std::string report = r.formatReport();
     assert(report.find("sample_4k.mkv") != std::string::npos);
     assert(report.find("3840 x 2160") != std::string::npos);
     assert(report.find("d3d11va") != std::string::npos);
     assert(report.find("flac") != std::string::npos);
+    assert(report.find("Direct3D 11 NV12") != std::string::npos);
+    assert(report.find("Test Video 4K") != std::string::npos);
 
     std::cout << "  -> testDiagnostics PASSED!" << std::endl;
 }
