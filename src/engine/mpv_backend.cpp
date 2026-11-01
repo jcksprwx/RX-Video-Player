@@ -544,6 +544,18 @@ void MpvBackend::updateMediaInfo() {
         mpv_free(title);
     }
 
+    char* path = mpv_get_property_string(m_mpv, "path");
+    if (path) {
+        m_mediaInfo.fullPath = path;
+        mpv_free(path);
+    }
+
+    char* fmt = mpv_get_property_string(m_mpv, "file-format");
+    if (fmt) {
+        m_mediaInfo.container = fmt;
+        mpv_free(fmt);
+    }
+
     int64_t w = 0, h = 0;
     if (mpv_get_property(m_mpv, "video-params/w", MPV_FORMAT_INT64, &w) >= 0) m_mediaInfo.videoWidth = static_cast<int>(w);
     if (mpv_get_property(m_mpv, "video-params/h", MPV_FORMAT_INT64, &h) >= 0) m_mediaInfo.videoHeight = static_cast<int>(h);
@@ -561,6 +573,11 @@ void MpvBackend::updateMediaInfo() {
     if (aCodec) {
         m_mediaInfo.audioCodec = aCodec;
         mpv_free(aCodec);
+    }
+
+    int64_t ch = 0;
+    if (mpv_get_property(m_mpv, "audio-params/channel-count", MPV_FORMAT_INT64, &ch) >= 0) {
+        m_mediaInfo.audioChannels = static_cast<int>(ch);
     }
 
     char* hwdec = mpv_get_property_string(m_mpv, "hwdec-current");

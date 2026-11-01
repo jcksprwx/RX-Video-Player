@@ -188,7 +188,6 @@ void RXPreferencesDialog::onCategoryChanged(int categoryIndex) {
 
 void RXPreferencesDialog::updateCategoryPanels(int categoryIndex) {
     // Show/hide relevant checkboxes according to category
-    bool showGen = (categoryIndex == 0);
     bool showPlay = (categoryIndex == 1);
     bool showVid = (categoryIndex == 2);
     bool showAud = (categoryIndex == 3);
@@ -293,7 +292,7 @@ LRESULT CALLBACK RXPreferencesDialog::dlgProc(HWND hwnd, UINT msg, WPARAM wParam
                     RECT rcAbout{ 200, 60, rcClient.right - 20, rcClient.bottom - 60 };
                     std::wstring aboutText =
                         L"RX Media Player — Professional Desktop Multimedia Engine\n\n"
-                        L"Version: 2.0.1 (Windows 64-bit)\n"
+                        L"Version: 2.1.0 (Windows 64-bit)\n"
                         L"Author & Lead Architect: Rituraj\n"
                         L"Repository: https://github.com/jcksprwx/RX-Video-Player\n\n"
                         L"Core Architecture:\n"

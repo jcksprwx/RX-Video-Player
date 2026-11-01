@@ -16,6 +16,7 @@
 #include <shellapi.h>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace rx::ui {
 
@@ -56,9 +57,12 @@ private:
     void showPreferencesDialog();
     void showAboutDialog();
     void showContextMenu(int screenX, int screenY);
+    void showMainMenu(int screenX, int screenY);
     void toggleCompactMode();
     void toggleAlwaysOnTop();
     void cyclePlaybackSpeed();
+    void cycleAspectRatio();
+    void toggleDeinterlace();
     void drawEmptyState(HDC hdc, const RECT& rc);
     void toggleMute();
     void updateTimeDisplay(double posSec, double durSec);
@@ -75,22 +79,28 @@ private:
     HWND m_videoHwnd = nullptr;
     HWND m_controlBarHwnd = nullptr;
 
-    // Controls
-    RXSeekBar m_seekBar;
+    // Four horizontal sections
+    RXTitleBar m_titleBar;             // A. Top Title Bar (38px)
+    RXTimelineStrip m_timelineStrip;   // C. Timeline & Volume Strip (26px)
+
+    // D. Bottom Control Toolbar Controls (48px)
+    // Left playback group
     RXIconButton m_btnPlay;
     RXIconButton m_btnStop;
     RXIconButton m_btnPrev;
     RXIconButton m_btnNext;
-    RXIconButton m_btnMute;
-    RXIconButton m_btnSpeed;
+    RXIconButton m_btnOpen;
+
+    // Right feature controls group
+    RXIconButton m_btnVideo;
+    RXIconButton m_btn360;
+    RXIconButton m_btn3D;
     RXIconButton m_btnSubtitles;
-    RXIconButton m_btnHwdec;
-    RXIconButton m_btnVideoAdjust;
     RXIconButton m_btnAudio;
-    RXIconButton m_btnInfo;
     RXIconButton m_btnPlaylist;
+    RXIconButton m_btnSettings;
+    RXIconButton m_btnMenu;
     RXIconButton m_btnFullscreen;
-    HWND m_lblTime = nullptr;
 
     // Subsystems
     MpvBackend m_engine;
@@ -114,11 +124,17 @@ private:
     std::wstring m_osdMessage;
     UINT_PTR m_osdTimerId = 0;
     HFONT m_uiFont = nullptr;
+    HFONT m_uiBoldFont = nullptr;
     HFONT m_osdFont = nullptr;
     HFONT m_brandFont = nullptr;
     HFONT m_brandSubFont = nullptr;
     HFONT m_recentFont = nullptr;
     HICON m_hBrandIcon = nullptr;
+
+    // Playback telemetry cache for bottom bar
+    double m_cachedPos = 0.0;
+    double m_cachedDur = 0.0;
+    RECT m_rcHwdecBadge{};
 
     // Empty state interactive regions
     RECT m_rcEmptyOpenFile{};
