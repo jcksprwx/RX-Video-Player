@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(RXMediaPlayer
-    VERSION 2.3.0
+    VERSION 2.4.0
     DESCRIPTION "RX Media Player - Native Windows 64-bit Multimedia Player by Rituraj"
     LANGUAGES C CXX
 )
@@ -29,7 +29,9 @@ set(RX_CORE_SOURCES
     src/core/logger.cpp
     src/core/settings.cpp
     src/core/utils.cpp
+    src/core/track_formatter.cpp
     src/core/shortcut_manager.cpp
+    src/subtitles/opensubtitles_client.cpp
     src/engine/mpv_backend.cpp
     src/playlist/playlist_manager.cpp
     src/audio/wasapi_enumerator.cpp
@@ -49,6 +51,8 @@ set(RX_UI_SOURCES
     src/ui/dialogs/bookmark_dialog.cpp
     src/ui/dialogs/preferences_dialog.cpp
     src/ui/dialogs/shortcut_help_dialog.cpp
+    src/ui/dialogs/online_subtitles_dialog.cpp
+    src/ui/menus/track_popup_menu.cpp
     src/ui/main_window.cpp
 )
 
@@ -76,6 +80,7 @@ target_link_libraries(rx_player PRIVATE
     kernel32
     dxgi
     psapi
+    winhttp
 )
 
 add_custom_command(TARGET rx_player POST_BUILD
@@ -103,4 +108,5 @@ target_link_libraries(rx_tests PRIVATE
     ole32
     oleaut32
     uuid
+    winhttp
 )

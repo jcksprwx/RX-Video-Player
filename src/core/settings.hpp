@@ -50,6 +50,13 @@ struct SubtitleSettings {
     double delayMs = 0.0;
 };
 
+struct OpenSubtitlesSettings {
+    std::string apiKey = "";
+    std::string preferredLanguages = "en,hi";
+    bool autoSearch = true;
+    bool applyAfterDownload = true;
+};
+
 class Settings {
 public:
     static Settings& instance();
@@ -61,9 +68,11 @@ public:
 
     WindowSettings window;
     AudioSettings audio;
+    AudioChannelMode channelMode = AudioChannelMode::Both;
     VideoSettings video;
     PlaybackSettings playback;
     SubtitleSettings subtitle;
+    OpenSubtitlesSettings opensubtitles;
     NetworkStreamConfig network;
 
     std::string lastOpenDirectory;

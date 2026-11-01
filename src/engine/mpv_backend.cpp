@@ -1,5 +1,7 @@
 #include "mpv_backend.hpp"
 #include "../core/logger.hpp"
+#include "../core/track_formatter.hpp"
+#include "../core/utils.hpp"
 #include <iostream>
 #include <sstream>
 #include <cmath>
@@ -200,8 +202,39 @@ void MpvBackend::setAudioDelay(double delaySec) {
 
 void MpvBackend::selectAudioTrack(int trackId) {
     if (!m_mpv) return;
+    m_selectedAudioTrack = trackId;
     std::string idStr = (trackId == 0) ? "no" : std::to_string(trackId);
     mpv_set_property_string(m_mpv, "aid", idStr.c_str());
+    queryTrackList();
+}
+
+int MpvBackend::getSelectedAudioTrack() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    for (const auto& t : m_mediaInfo.tracks) {
+        if (t.type == "audio" && t.selected) return t.id;
+    }
+    return m_selectedAudioTrack;
+}
+
+int MpvBackend::getSelectedSubtitleTrack() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (!m_subtitlesVisible) return 0;
+    for (const auto& t : m_mediaInfo.tracks) {
+        if (t.type == "sub" && t.selected) return t.id;
+    }
+    return m_selectedSubTrack;
+}
+
+void MpvBackend::setAudioChannelMode(AudioChannelMode mode) {
+    if (!m_mpv) return;
+    m_channelMode = mode;
+    if (mode == AudioChannelMode::Left) {
+        mpv_command_string(m_mpv, "af add @rx_pan:lavfi=[pan=stereo|c0=c0|c1=c0]");
+    } else if (mode == AudioChannelMode::Right) {
+        mpv_command_string(m_mpv, "af add @rx_pan:lavfi=[pan=stereo|c0=c1|c1=c1]");
+    } else {
+        mpv_command_string(m_mpv, "af del @rx_pan");
+    }
 }
 
 void MpvBackend::setAudioDevice(const std::string& deviceId) {
@@ -241,8 +274,10 @@ bool MpvBackend::loadSubtitle(const std::string& subPath) {
 void MpvBackend::selectSubtitleTrack(int trackId) {
     if (!m_mpv) return;
     m_selectedSubTrack = trackId;
+    m_subtitlesVisible = (trackId != 0);
     std::string idStr = (trackId == 0) ? "no" : std::to_string(trackId);
     mpv_set_property_string(m_mpv, "sid", idStr.c_str());
+    queryTrackList();
 }
 
 void MpvBackend::setSubtitleDelay(double delaySec) {
@@ -398,17 +433,10 @@ std::string MpvBackend::cycleAudioTrack() {
     auto tracks = getAudioTracks();
     if (tracks.empty()) return "";
     if (tracks.size() == 1) {
-        return tracks[0].title.empty() ? (tracks[0].lang.empty() ? "Default Audio" : tracks[0].lang) : tracks[0].title;
+        return "SINGLE_TRACK";
     }
 
-    int currentId = 1;
-    for (const auto& t : tracks) {
-        if (t.selected) {
-            currentId = t.id;
-            break;
-        }
-    }
-
+    int currentId = getSelectedAudioTrack();
     size_t nextIdx = 0;
     for (size_t i = 0; i < tracks.size(); ++i) {
         if (tracks[i].id == currentId) {
@@ -418,26 +446,33 @@ std::string MpvBackend::cycleAudioTrack() {
     }
 
     selectAudioTrack(tracks[nextIdx].id);
-    std::string name = tracks[nextIdx].title.empty() ? (tracks[nextIdx].lang.empty() ? "Track " + std::to_string(tracks[nextIdx].id) : tracks[nextIdx].lang) : tracks[nextIdx].title;
-    return name;
+    return rx::utils::wideToUtf8(rx::track_formatter::formatAudioTrackOsd(tracks[nextIdx]));
 }
 
 std::string MpvBackend::cycleSubtitleTrack() {
     auto tracks = getSubtitleTracks();
     if (tracks.empty()) return "";
 
-    int currentId = m_selectedSubTrack;
-    size_t nextIdx = 0;
+    if (!m_subtitlesVisible || m_selectedSubTrack == 0) {
+        selectSubtitleTrack(tracks[0].id);
+        return rx::utils::wideToUtf8(rx::track_formatter::formatSubtitleTrackOsd(tracks[0]));
+    }
+
+    int curIdx = -1;
     for (size_t i = 0; i < tracks.size(); ++i) {
-        if (tracks[i].id == currentId) {
-            nextIdx = (i + 1) % tracks.size();
+        if (tracks[i].id == m_selectedSubTrack) {
+            curIdx = static_cast<int>(i);
             break;
         }
     }
 
-    selectSubtitleTrack(tracks[nextIdx].id);
-    std::string name = tracks[nextIdx].title.empty() ? (tracks[nextIdx].lang.empty() ? "Subtitle " + std::to_string(tracks[nextIdx].id) : tracks[nextIdx].lang) : tracks[nextIdx].title;
-    return name;
+    if (curIdx >= 0 && static_cast<size_t>(curIdx) + 1 < tracks.size()) {
+        selectSubtitleTrack(tracks[curIdx + 1].id);
+        return rx::utils::wideToUtf8(rx::track_formatter::formatSubtitleTrackOsd(tracks[curIdx + 1]));
+    } else {
+        selectSubtitleTrack(0);
+        return "OFF";
+    }
 }
 
 bool MpvBackend::toggleSubtitleVisibility() {
@@ -646,6 +681,8 @@ void MpvBackend::handlePropertyChange(mpv_event_property* prop) {
         m_subDelay = *static_cast<double*>(prop->data);
     } else if (name == "audio-delay" && prop->format == MPV_FORMAT_DOUBLE) {
         m_audioDelay = *static_cast<double*>(prop->data);
+    } else if (name == "track-list" || name == "aid" || name == "sid") {
+        queryTrackList();
     }
 }
 
@@ -728,11 +765,43 @@ void MpvBackend::queryTrackList() {
         char* codec = mpv_get_property_string(m_mpv, (prefix + "codec").c_str());
         if (codec) { track.codec = codec; mpv_free(codec); }
 
+        char* codecDesc = mpv_get_property_string(m_mpv, (prefix + "codec-desc").c_str());
+        if (codecDesc) { track.codecDesc = codecDesc; mpv_free(codecDesc); }
+
+        int64_t channels = 0;
+        if (mpv_get_property(m_mpv, (prefix + "demux-channels").c_str(), MPV_FORMAT_INT64, &channels) >= 0 ||
+            mpv_get_property(m_mpv, (prefix + "audio-channels").c_str(), MPV_FORMAT_INT64, &channels) >= 0) {
+            track.channels = static_cast<int>(channels);
+        }
+
+        int64_t srate = 0;
+        if (mpv_get_property(m_mpv, (prefix + "demux-samplerate").c_str(), MPV_FORMAT_INT64, &srate) >= 0) {
+            track.sampleRate = static_cast<int>(srate);
+        }
+
+        int64_t brate = 0;
+        if (mpv_get_property(m_mpv, (prefix + "demux-bitrate").c_str(), MPV_FORMAT_INT64, &brate) >= 0) {
+            track.bitrate = static_cast<int>(brate);
+        }
+
+        int isDef = 0;
+        if (mpv_get_property(m_mpv, (prefix + "default").c_str(), MPV_FORMAT_FLAG, &isDef) >= 0) {
+            track.isDefault = (isDef != 0);
+        }
+
+        int isFrc = 0;
+        if (mpv_get_property(m_mpv, (prefix + "forced").c_str(), MPV_FORMAT_FLAG, &isFrc) >= 0) {
+            track.isForced = (isFrc != 0);
+        }
+
         int selected = 0;
         if (mpv_get_property(m_mpv, (prefix + "selected").c_str(), MPV_FORMAT_FLAG, &selected) >= 0) track.selected = (selected != 0);
 
         int external = 0;
         if (mpv_get_property(m_mpv, (prefix + "external").c_str(), MPV_FORMAT_FLAG, &external) >= 0) track.external = (external != 0);
+
+        char* extFile = mpv_get_property_string(m_mpv, (prefix + "external-filename").c_str());
+        if (extFile) { track.externalFilename = extFile; mpv_free(extFile); }
 
         tracks.push_back(track);
     }

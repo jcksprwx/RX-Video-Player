@@ -2,6 +2,7 @@
 #include "../core/logger.hpp"
 #include "../core/settings.hpp"
 #include "../core/utils.hpp"
+#include "../core/track_formatter.hpp"
 #include "../library/media_database.hpp"
 #include <windowsx.h>
 #include <commdlg.h>
@@ -62,6 +63,10 @@ constexpr UINT IDM_SEEK_FWD_30       = 9032;
 constexpr UINT IDM_SEEK_BACK_30      = 9033;
 constexpr UINT IDM_BOOKMARKS         = 9034;
 constexpr UINT IDM_ADD_BOOKMARK      = 9035;
+constexpr UINT IDM_AUDIO_TRACK_MENU   = 9036;
+constexpr UINT IDM_AUDIO_CHAN_BOTH    = 9037;
+constexpr UINT IDM_AUDIO_CHAN_LEFT    = 9038;
+constexpr UINT IDM_AUDIO_CHAN_RIGHT   = 9039;
 constexpr UINT IDM_AUDIO_EQUALIZER   = 9040;
 constexpr UINT IDM_MUTE              = 9041;
 constexpr UINT IDM_VOL_UP            = 9042;
@@ -78,6 +83,8 @@ constexpr UINT IDM_HWDEC_TOGGLE      = 9058;
 constexpr UINT IDM_SCREENSHOT        = 9059;
 constexpr UINT IDM_SUBTITLE_SETTINGS = 9060;
 constexpr UINT IDM_SUBTITLE_LOAD     = 9061;
+constexpr UINT IDM_SUBTITLE_TRACK_MENU = 9062;
+constexpr UINT IDM_SUBTITLE_ONLINE     = 9063;
 constexpr UINT IDM_PLAYLIST_TOGGLE   = 9070;
 constexpr UINT IDM_PLAYLIST_SHUFFLE  = 9071;
 constexpr UINT IDM_PLAYLIST_CLEAR    = 9072;
@@ -89,6 +96,8 @@ constexpr UINT IDM_PREFERENCES       = 9090;
 constexpr UINT IDM_ABOUT             = 9091;
 constexpr UINT IDM_SHORTCUT_HELP     = 9092;
 constexpr UINT IDM_RECENT_BASE       = 9200;
+constexpr UINT IDM_AUDIO_TRACK_BASE   = 9300;
+constexpr UINT IDM_SUBTITLE_TRACK_BASE = 9400;
 
 RXMainWindow::RXMainWindow() = default;
 
@@ -494,14 +503,14 @@ void RXMainWindow::setupChildControls() {
         toggleDeinterlace();
     });
 
-    m_btnSubtitles.create(m_controlBarHwnd, 0, 8, 32, 32, L"CC", IDC_MAIN_SUBTITLES, L"Subtitle Explorer & Sync (Ctrl+S)");
+    m_btnSubtitles.create(m_controlBarHwnd, 0, 8, 32, 32, L"CC", IDC_MAIN_SUBTITLES, L"Subtitle Stream & Tracks (L)");
     m_btnSubtitles.setCallback([this]() {
-        openSubtitleDialog();
+        showSubtitleTrackMenu(0, 0);
     });
 
-    m_btnAudio.create(m_controlBarHwnd, 0, 8, 32, 32, L"🎵", IDC_MAIN_AUDIO, L"10-Band Equalizer & WASAPI (A)");
+    m_btnAudio.create(m_controlBarHwnd, 0, 8, 32, 32, L"🎵", IDC_MAIN_AUDIO, L"Audio Stream & Tracks (Alt+A)");
     m_btnAudio.setCallback([this]() {
-        toggleAudioPanel();
+        showAudioTrackMenu(0, 0);
     });
 
     m_btnPlaylist.create(m_controlBarHwnd, 0, 8, 36, 32, L"☰", IDC_MAIN_PLAYLIST, L"Toggle Playlist Panel (P / Ctrl+P)");
@@ -972,19 +981,251 @@ void RXMainWindow::showShortcutHelpDialog() {
 
 void RXMainWindow::showAboutDialog() {
     std::wstring msg =
-        L"RX Media Player v2.3.0 (Windows 64-bit)\n\n"
+        L"RX Media Player v2.4.0 (Windows 64-bit)\n\n"
         L"Author & Lead Architect: Rituraj\n"
         L"Repository: https://github.com/jcksprwx/RX-Video-Player\n\n"
         L"Architecture & Subsystems:\n"
         L"  • Modern C++20 Core Application\n"
         L"  • Direct3D 11 GPU Rendering (D3D11VA / DXVA2)\n"
         L"  • Direct WASAPI Audio with 10-Band Graphic Equalizer\n"
+        L"  • Professional Audio & Subtitle Track Selection\n"
+        L"  • OpenSubtitles.com Online Subtitle Integration\n"
         L"  • Multimedia Engine: libmpv & FFmpeg Backends\n"
         L"  • Library & History: Embedded SQLite 3 Database\n\n"
         L"Engineered for high performance, smooth playback, and precision control.\n"
         L"Copyright (c) 2026 RX Media Player. All rights reserved.";
 
     MessageBoxW(m_mainHwnd, msg.c_str(), L"About RX Media Player", MB_ICONINFORMATION | MB_OK);
+}
+
+void RXMainWindow::showAudioTrackMenu(int screenX, int screenY) {
+    if (screenX == 0 && screenY == 0) {
+        RECT rc{};
+        GetWindowRect(m_btnAudio.getHwnd(), &rc);
+        screenX = rc.left;
+        screenY = rc.top;
+    }
+
+    auto tracks = m_engine.getAudioTracks();
+    int curTrackId = m_engine.getSelectedAudioTrack();
+    AudioChannelMode curMode = m_engine.getAudioChannelMode();
+
+    std::vector<rx::ui::TrackMenuItem> items;
+
+    // Header
+    rx::ui::TrackMenuItem hdr;
+    hdr.id = 1001;
+    hdr.text = L"Cycle Audio Stream";
+    hdr.shortcut = L"Alt+A";
+    hdr.isHeader = true;
+    items.push_back(hdr);
+
+    if (tracks.empty()) {
+        rx::ui::TrackMenuItem none;
+        none.id = 0;
+        none.text = L"No Audio Tracks Available";
+        none.isEnabled = false;
+        items.push_back(none);
+    } else {
+        for (size_t i = 0; i < tracks.size(); ++i) {
+            rx::ui::TrackMenuItem it;
+            it.id = 2000 + tracks[i].id;
+            it.text = rx::track_formatter::formatAudioTrackMenuLabel(tracks[i], static_cast<int>(i + 1));
+            it.isRadio = true;
+            it.isSelected = (tracks[i].id == curTrackId);
+            items.push_back(it);
+        }
+    }
+
+    // Separator
+    rx::ui::TrackMenuItem sep1;
+    sep1.isSeparator = true;
+    items.push_back(sep1);
+
+    // Audio channel selection
+    rx::ui::TrackMenuItem mBoth;
+    mBoth.id = 1010;
+    mBoth.text = L"Both";
+    mBoth.isRadio = true;
+    mBoth.isSelected = (curMode == AudioChannelMode::Both);
+    items.push_back(mBoth);
+
+    rx::ui::TrackMenuItem mLeft;
+    mLeft.id = 1011;
+    mLeft.text = L"Left channel";
+    mLeft.isRadio = true;
+    mLeft.isSelected = (curMode == AudioChannelMode::Left);
+    items.push_back(mLeft);
+
+    rx::ui::TrackMenuItem mRight;
+    mRight.id = 1012;
+    mRight.text = L"Right channel";
+    mRight.isRadio = true;
+    mRight.isSelected = (curMode == AudioChannelMode::Right);
+    items.push_back(mRight);
+
+    // Separator
+    rx::ui::TrackMenuItem sep2;
+    sep2.isSeparator = true;
+    items.push_back(sep2);
+
+    rx::ui::TrackMenuItem mEq;
+    mEq.id = 1020;
+    mEq.text = L"10-Band Equalizer & WASAPI...";
+    mEq.shortcut = L"A";
+    items.push_back(mEq);
+
+    int choice = m_trackMenu.trackPopupMenu(m_mainHwnd, screenX, screenY, items);
+    if (choice == 1001) {
+        executeAction(PlayerAction::CycleAudioTrack);
+    } else if (choice >= 2000) {
+        int trackId = choice - 2000;
+        m_engine.selectAudioTrack(trackId);
+        for (const auto& t : tracks) {
+            if (t.id == trackId) {
+                showOsdMessage(L"Audio Track: " + rx::track_formatter::formatAudioTrackOsd(t));
+                break;
+            }
+        }
+    } else if (choice == 1010) {
+        m_engine.setAudioChannelMode(AudioChannelMode::Both);
+        showOsdMessage(L"Audio Mode: Both");
+    } else if (choice == 1011) {
+        m_engine.setAudioChannelMode(AudioChannelMode::Left);
+        showOsdMessage(L"Audio Mode: Left Channel");
+    } else if (choice == 1012) {
+        m_engine.setAudioChannelMode(AudioChannelMode::Right);
+        showOsdMessage(L"Audio Mode: Right Channel");
+    } else if (choice == 1020) {
+        toggleAudioPanel();
+    }
+}
+
+void RXMainWindow::showSubtitleTrackMenu(int screenX, int screenY) {
+    if (screenX == 0 && screenY == 0) {
+        RECT rc{};
+        GetWindowRect(m_btnSubtitles.getHwnd(), &rc);
+        screenX = rc.left;
+        screenY = rc.top;
+    }
+
+    auto subs = m_engine.getSubtitleTracks();
+    int curSubId = m_engine.getSelectedSubtitleTrack();
+
+    std::vector<rx::ui::TrackMenuItem> items;
+
+    // Header
+    rx::ui::TrackMenuItem hdr;
+    hdr.id = 3001;
+    hdr.text = L"Subtitle Stream";
+    hdr.shortcut = L"L";
+    hdr.isHeader = true;
+    items.push_back(hdr);
+
+    // Disable subtitles
+    rx::ui::TrackMenuItem dis;
+    dis.id = 3002;
+    dis.text = L"Disable Subtitles";
+    dis.isRadio = true;
+    dis.isSelected = (curSubId == 0);
+    items.push_back(dis);
+
+    // Cycle
+    rx::ui::TrackMenuItem cyc;
+    cyc.id = 3003;
+    cyc.text = L"Cycle Subtitle Stream";
+    items.push_back(cyc);
+
+    // Separator
+    rx::ui::TrackMenuItem sep1;
+    sep1.isSeparator = true;
+    items.push_back(sep1);
+
+    if (subs.empty()) {
+        rx::ui::TrackMenuItem none;
+        none.id = 0;
+        none.text = L"No Subtitle Tracks Available";
+        none.isEnabled = false;
+        items.push_back(none);
+    } else {
+        for (size_t i = 0; i < subs.size(); ++i) {
+            rx::ui::TrackMenuItem it;
+            it.id = 4000 + subs[i].id;
+            it.text = rx::track_formatter::formatSubtitleTrackMenuLabel(subs[i], static_cast<int>(i + 1));
+            it.isRadio = true;
+            it.isSelected = (subs[i].id == curSubId);
+            items.push_back(it);
+        }
+    }
+
+    // Separator
+    rx::ui::TrackMenuItem sep2;
+    sep2.isSeparator = true;
+    items.push_back(sep2);
+
+    // Utility actions
+    rx::ui::TrackMenuItem itExt;
+    itExt.id = 3010;
+    itExt.text = L"Load External Subtitle...";
+    items.push_back(itExt);
+
+    rx::ui::TrackMenuItem itOnline;
+    itOnline.id = 3011;
+    itOnline.text = L"Download Subtitles Online...";
+    itOnline.shortcut = L"Ctrl+D";
+    items.push_back(itOnline);
+
+    rx::ui::TrackMenuItem itSync;
+    itSync.id = 3012;
+    itSync.text = L"Subtitle Synchronization...";
+    items.push_back(itSync);
+
+    rx::ui::TrackMenuItem itApp;
+    itApp.id = 3013;
+    itApp.text = L"Subtitle Appearance...";
+    items.push_back(itApp);
+
+    rx::ui::TrackMenuItem itSet;
+    itSet.id = 3014;
+    itSet.text = L"Subtitle Settings...";
+    items.push_back(itSet);
+
+    int choice = m_trackMenu.trackPopupMenu(m_mainHwnd, screenX, screenY, items);
+    if (choice == 3001 || choice == 3003) {
+        executeAction(PlayerAction::CycleSubtitleTrack);
+    } else if (choice == 3002) {
+        m_engine.selectSubtitleTrack(0);
+        showOsdMessage(L"Subtitles: Off");
+    } else if (choice >= 4000) {
+        int subId = choice - 4000;
+        m_engine.selectSubtitleTrack(subId);
+        for (const auto& s : subs) {
+            if (s.id == subId) {
+                showOsdMessage(L"Subtitle Track: " + rx::track_formatter::formatSubtitleTrackOsd(s));
+                break;
+            }
+        }
+    } else if (choice == 3010) {
+        openSubtitleDialog();
+    } else if (choice == 3011) {
+        showOnlineSubtitlesDialog();
+    } else if (choice == 3012 || choice == 3013 || choice == 3014) {
+        openSubtitleDialog();
+    }
+}
+
+void RXMainWindow::showOnlineSubtitlesDialog() {
+    if (!m_onlineSubsDialog) {
+        m_onlineSubsDialog = std::make_unique<rx::ui::RXOnlineSubtitlesDialog>();
+        m_onlineSubsDialog->setDownloadCallback([this](const std::string& filePath, bool applyNow) {
+            if (!filePath.empty() && applyNow) {
+                m_engine.loadSubtitle(filePath);
+                std::wstring fn = std::filesystem::path(filePath).filename().wstring();
+                showOsdMessage(L"Subtitle Loaded: " + fn);
+            }
+        });
+    }
+    m_onlineSubsDialog->show(m_mainHwnd, m_engine.getMediaInfo().fullPath);
 }
 
 void RXMainWindow::toggleCompactMode() {
@@ -1119,6 +1360,33 @@ void RXMainWindow::showContextMenu(int screenX, int screenY) {
     AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hSubVideo, L"Video");
 
     // 5. Audio
+    AppendMenuW(hSubAudio, MF_STRING, IDM_AUDIO_TRACK_MENU, L"Audio Stream Selection...\tAlt+A");
+
+    HMENU hSubAudioTracks = CreatePopupMenu();
+    auto audioTracks = m_engine.getAudioTracks();
+    int curAudioId = m_engine.getSelectedAudioTrack();
+    if (audioTracks.empty()) {
+        AppendMenuW(hSubAudioTracks, MF_GRAYED | MF_STRING, 0, L"No Audio Tracks Available");
+    } else {
+        for (size_t i = 0; i < audioTracks.size(); ++i) {
+            std::wstring label = rx::track_formatter::formatAudioTrackMenuLabel(audioTracks[i], static_cast<int>(i + 1));
+            UINT flags = MF_STRING;
+            if (audioTracks[i].id == curAudioId) {
+                flags |= MF_CHECKED;
+            }
+            AppendMenuW(hSubAudioTracks, flags, IDM_AUDIO_TRACK_BASE + audioTracks[i].id, label.c_str());
+        }
+    }
+    AppendMenuW(hSubAudio, MF_POPUP, (UINT_PTR)hSubAudioTracks, L"Audio Streams");
+
+    HMENU hSubChannelMode = CreatePopupMenu();
+    AudioChannelMode curMode = m_engine.getAudioChannelMode();
+    AppendMenuW(hSubChannelMode, MF_STRING | (curMode == AudioChannelMode::Both ? MF_CHECKED : 0), IDM_AUDIO_CHAN_BOTH, L"Both");
+    AppendMenuW(hSubChannelMode, MF_STRING | (curMode == AudioChannelMode::Left ? MF_CHECKED : 0), IDM_AUDIO_CHAN_LEFT, L"Left channel");
+    AppendMenuW(hSubChannelMode, MF_STRING | (curMode == AudioChannelMode::Right ? MF_CHECKED : 0), IDM_AUDIO_CHAN_RIGHT, L"Right channel");
+    AppendMenuW(hSubAudio, MF_POPUP, (UINT_PTR)hSubChannelMode, L"Audio Channel");
+
+    AppendMenuW(hSubAudio, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(hSubAudio, MF_STRING, IDM_AUDIO_EQUALIZER, L"10-Band Equalizer & WASAPI...\tA");
     AppendMenuW(hSubAudio, MF_STRING, IDM_MUTE, m_engine.isMuted() ? L"Unmute\tM" : L"Mute\tM");
     AppendMenuW(hSubAudio, MF_STRING, IDM_VOL_UP, L"Volume Up (5%)\tUp");
@@ -1126,8 +1394,30 @@ void RXMainWindow::showContextMenu(int screenX, int screenY) {
     AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hSubAudio, L"Audio");
 
     // 6. Subtitles
-    AppendMenuW(hSubSubs, MF_STRING, IDM_SUBTITLE_SETTINGS, L"Subtitle Explorer & Sync...\tCtrl+S");
+    AppendMenuW(hSubSubs, MF_STRING, IDM_SUBTITLE_TRACK_MENU, L"Subtitle Stream Selection...\tL");
+
+    HMENU hSubSubTracks = CreatePopupMenu();
+    auto subTracks = m_engine.getSubtitleTracks();
+    int curSubId = m_engine.getSelectedSubtitleTrack();
+    AppendMenuW(hSubSubTracks, MF_STRING | (curSubId == 0 ? MF_CHECKED : 0), IDM_SUBTITLE_TRACK_BASE, L"Disable Subtitles");
+    AppendMenuW(hSubSubTracks, MF_SEPARATOR, 0, nullptr);
+    if (subTracks.empty()) {
+        AppendMenuW(hSubSubTracks, MF_GRAYED | MF_STRING, 0, L"No Subtitle Tracks Available");
+    } else {
+        for (size_t i = 0; i < subTracks.size(); ++i) {
+            std::wstring label = rx::track_formatter::formatSubtitleTrackMenuLabel(subTracks[i], static_cast<int>(i + 1));
+            UINT flags = MF_STRING;
+            if (subTracks[i].id == curSubId) {
+                flags |= MF_CHECKED;
+            }
+            AppendMenuW(hSubSubTracks, flags, IDM_SUBTITLE_TRACK_BASE + subTracks[i].id, label.c_str());
+        }
+    }
+    AppendMenuW(hSubSubs, MF_POPUP, (UINT_PTR)hSubSubTracks, L"Subtitle Streams");
+    AppendMenuW(hSubSubs, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(hSubSubs, MF_STRING, IDM_SUBTITLE_ONLINE, L"Download Subtitles Online...\tCtrl+D");
     AppendMenuW(hSubSubs, MF_STRING, IDM_SUBTITLE_LOAD, L"Load External Subtitle File...");
+    AppendMenuW(hSubSubs, MF_STRING, IDM_SUBTITLE_SETTINGS, L"Subtitle Explorer & Sync...\tCtrl+S");
     AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hSubSubs, L"Subtitles");
 
     // 7. Playlist
@@ -1633,24 +1923,71 @@ void RXMainWindow::executeAction(PlayerAction action) {
         case PlayerAction::CycleAudioTrack: {
             std::string name = m_engine.cycleAudioTrack();
             if (name.empty()) {
-                showOsdMessage(L"No Additional Audio Tracks");
+                showOsdMessage(L"No Audio Tracks Available");
+            } else if (name == "SINGLE_TRACK") {
+                auto tracks = m_engine.getAudioTracks();
+                if (!tracks.empty()) {
+                    showOsdMessage(L"Audio Track: " + rx::track_formatter::formatAudioTrackOsd(tracks[0]));
+                } else {
+                    showOsdMessage(L"No Audio Tracks Available");
+                }
             } else {
                 showOsdMessage(L"Audio Track: " + rx::utils::utf8ToWide(name));
             }
+            break;
+        }
+        case PlayerAction::OpenAudioMenu: {
+            showAudioTrackMenu(0, 0);
+            break;
+        }
+        case PlayerAction::AudioChannelBoth: {
+            m_engine.setAudioChannelMode(AudioChannelMode::Both);
+            showOsdMessage(L"Audio Mode: Both");
+            break;
+        }
+        case PlayerAction::AudioChannelLeft: {
+            m_engine.setAudioChannelMode(AudioChannelMode::Left);
+            showOsdMessage(L"Audio Mode: Left Channel");
+            break;
+        }
+        case PlayerAction::AudioChannelRight: {
+            m_engine.setAudioChannelMode(AudioChannelMode::Right);
+            showOsdMessage(L"Audio Mode: Right Channel");
             break;
         }
         case PlayerAction::CycleSubtitleTrack: {
             std::string name = m_engine.cycleSubtitleTrack();
             if (name.empty()) {
                 showOsdMessage(L"No Subtitles Available");
+            } else if (name == "OFF") {
+                showOsdMessage(L"Subtitles: Off");
             } else {
                 showOsdMessage(L"Subtitle Track: " + rx::utils::utf8ToWide(name));
             }
             break;
         }
         case PlayerAction::ToggleSubtitles: {
-            bool vis = m_engine.toggleSubtitleVisibility();
-            showOsdMessage(vis ? L"Subtitles: On" : L"Subtitles: Off");
+            int cur = m_engine.getSelectedSubtitleTrack();
+            if (cur > 0 && m_engine.isSubtitlesVisible()) {
+                m_engine.selectSubtitleTrack(0);
+                showOsdMessage(L"Subtitles: Off");
+            } else {
+                auto tracks = m_engine.getSubtitleTracks();
+                if (tracks.empty()) {
+                    showOsdMessage(L"No Subtitles Available");
+                } else {
+                    m_engine.selectSubtitleTrack(tracks[0].id);
+                    showOsdMessage(L"Subtitle Track: " + rx::track_formatter::formatSubtitleTrackOsd(tracks[0]));
+                }
+            }
+            break;
+        }
+        case PlayerAction::OpenSubtitleMenu: {
+            showSubtitleTrackMenu(0, 0);
+            break;
+        }
+        case PlayerAction::DownloadOnlineSubtitles: {
+            showOnlineSubtitlesDialog();
             break;
         }
         case PlayerAction::SubtitleDelayDown: {
@@ -1795,6 +2132,36 @@ LRESULT CALLBACK RXMainWindow::mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, L
                     return 0;
                 }
 
+                if (id >= IDM_AUDIO_TRACK_BASE && id < IDM_SUBTITLE_TRACK_BASE) {
+                    int trackId = id - IDM_AUDIO_TRACK_BASE;
+                    pThis->m_engine.selectAudioTrack(trackId);
+                    auto tracks = pThis->m_engine.getAudioTracks();
+                    for (const auto& t : tracks) {
+                        if (t.id == trackId) {
+                            pThis->showOsdMessage(L"Audio Track: " + rx::track_formatter::formatAudioTrackOsd(t));
+                            break;
+                        }
+                    }
+                    return 0;
+                }
+                if (id >= IDM_SUBTITLE_TRACK_BASE && id < IDM_SUBTITLE_TRACK_BASE + 200) {
+                    int trackId = id - IDM_SUBTITLE_TRACK_BASE;
+                    if (trackId == 0) {
+                        pThis->m_engine.selectSubtitleTrack(0);
+                        pThis->showOsdMessage(L"Subtitles: Off");
+                    } else {
+                        pThis->m_engine.selectSubtitleTrack(trackId);
+                        auto subs = pThis->m_engine.getSubtitleTracks();
+                        for (const auto& s : subs) {
+                            if (s.id == trackId) {
+                                pThis->showOsdMessage(L"Subtitle Track: " + rx::track_formatter::formatSubtitleTrackOsd(s));
+                                break;
+                            }
+                        }
+                    }
+                    return 0;
+                }
+
                 switch (id) {
                     case IDM_OPEN_FILE:         pThis->openFileDialog(); break;
                     case IDM_OPEN_FOLDER:       pThis->openFolderDialog(); break;
@@ -1833,6 +2200,19 @@ LRESULT CALLBACK RXMainWindow::mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, L
                     case IDM_SEEK_BACK_30:      pThis->m_engine.seekRelative(-30.0); break;
                     case IDM_BOOKMARKS:         pThis->openBookmarkDialog(); break;
                     case IDM_ADD_BOOKMARK:      pThis->addQuickBookmark(); break;
+                    case IDM_AUDIO_TRACK_MENU:  pThis->showAudioTrackMenu(0, 0); break;
+                    case IDM_AUDIO_CHAN_BOTH:
+                        pThis->m_engine.setAudioChannelMode(AudioChannelMode::Both);
+                        pThis->showOsdMessage(L"Audio Mode: Both");
+                        break;
+                    case IDM_AUDIO_CHAN_LEFT:
+                        pThis->m_engine.setAudioChannelMode(AudioChannelMode::Left);
+                        pThis->showOsdMessage(L"Audio Mode: Left Channel");
+                        break;
+                    case IDM_AUDIO_CHAN_RIGHT:
+                        pThis->m_engine.setAudioChannelMode(AudioChannelMode::Right);
+                        pThis->showOsdMessage(L"Audio Mode: Right Channel");
+                        break;
                     case IDM_AUDIO_EQUALIZER:   pThis->toggleAudioPanel(); break;
                     case IDM_MUTE:              pThis->toggleMute(); break;
                     case IDM_VOL_UP: {
@@ -1881,6 +2261,8 @@ LRESULT CALLBACK RXMainWindow::mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, L
                         break;
                     }
                     case IDM_SCREENSHOT:        pThis->takeScreenshot(); break;
+                    case IDM_SUBTITLE_TRACK_MENU: pThis->showSubtitleTrackMenu(0, 0); break;
+                    case IDM_SUBTITLE_ONLINE:     pThis->showOnlineSubtitlesDialog(); break;
                     case IDM_SUBTITLE_SETTINGS: pThis->openSubtitleDialog(); break;
                     case IDM_SUBTITLE_LOAD:     pThis->openSubtitleDialog(); break;
                     case IDM_PLAYLIST_TOGGLE:   pThis->togglePlaylistPanel(); break;

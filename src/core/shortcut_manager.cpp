@@ -232,7 +232,15 @@ void ShortcutManager::initialize() {
 
     // 9. Audio
     registerAction(PlayerAction::CycleAudioTrack, "CycleAudioTrack", L"Cycle Audio Tracks", L"Audio",
-                   { { 'A', false, false, false } }, L"Switch to next audio stream");
+                   { { 'A', false, false, true }, { 'A', false, false, false } }, L"Switch to next audio stream (Alt+A)");
+    registerAction(PlayerAction::OpenAudioMenu, "OpenAudioMenu", L"Open Audio Stream Menu", L"Audio",
+                   { { 'A', true, true, false } }, L"Open popup audio track selection menu");
+    registerAction(PlayerAction::AudioChannelBoth, "AudioChannelBoth", L"Channel Mode: Both", L"Audio",
+                   {}, L"Stereo/multichannel audio output");
+    registerAction(PlayerAction::AudioChannelLeft, "AudioChannelLeft", L"Channel Mode: Left", L"Audio",
+                   {}, L"Output left channel to both speakers");
+    registerAction(PlayerAction::AudioChannelRight, "AudioChannelRight", L"Channel Mode: Right", L"Audio",
+                   {}, L"Output right channel to both speakers");
 
     // 10. Subtitles
     registerAction(PlayerAction::CycleSubtitleTrack, "CycleSubtitleTrack", L"Cycle Subtitle Tracks", L"Subtitles",
@@ -245,6 +253,10 @@ void ShortcutManager::initialize() {
                    { { VK_RIGHT, false, false, true } }, L"Delay subtitles by 100ms");
     registerAction(PlayerAction::LoadSubtitles, "LoadSubtitles", L"Load External Subtitles", L"Subtitles",
                    { { 'S', true, true, false } }, L"Load external SRT, ASS, or VTT file");
+    registerAction(PlayerAction::OpenSubtitleMenu, "OpenSubtitleMenu", L"Open Subtitle Stream Menu", L"Subtitles",
+                   { { 'L', true, true, false } }, L"Open popup subtitle track selection menu");
+    registerAction(PlayerAction::DownloadOnlineSubtitles, "DownloadOnlineSubtitles", L"Download Subtitles Online", L"Subtitles",
+                   { { 'D', true, false, false } }, L"Search and download subtitles from OpenSubtitles.com");
 
     // 11. Information
     registerAction(PlayerAction::ShowDetailedInfo, "ShowDetailedInfo", L"Detailed Playback Info", L"Information",

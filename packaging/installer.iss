@@ -2,7 +2,7 @@
 ; High-performance Windows multimedia application
 
 #define MyAppName "RX Media Player"
-#define MyAppVersion "2.3.0"
+#define MyAppVersion "2.4.0"
 #define MyAppPublisher "Rituraj"
 #define MyAppURL "https://github.com/jcksprwx/RX-Video-Player"
 #define MyAppExeName "rx_player.exe"

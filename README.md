@@ -1,7 +1,7 @@
 # RX Media Player
 
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(64--bit)-0078D6?style=flat-square&logo=windows)](https://microsoft.com/windows)
-[![Version: 2.3.0](https://img.shields.io/badge/Version-2.3.0-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.3.0)
+[![Version: 2.4.0](https://img.shields.io/badge/Version-2.4.0-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.4.0)
 [![Author: Rituraj](https://img.shields.io/badge/Author-Rituraj-blueviolet?style=flat-square)](https://github.com/jcksprwx)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![C++: 20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=c%2B%2B)](https://en.cppreference.com/w/cpp/20)
@@ -85,9 +85,16 @@ Legacy Windows media players are often cluttered with outdated interfaces, slugg
 - **Scene Bookmarks (`Ctrl+B`):** Save timestamps with custom notes. Press `B` to instantly drop a bookmark during playback. Double-click to jump to any saved bookmark.
 - **Watched Folders & Library Indexing:** Indexes video/audio files from monitored local drives.
 
+### 🎧 Audio Streams, Subtitle Tracks & OpenSubtitles Integration (v2.4.0)
+- **Compact Custom Dark Menus:** Windows-style popup menus styled with dark charcoal `#414141`, `#191919` hover highlight, `#D0D0D0` text, and bright yellow `#FFFF00` selected-track text with blue circular radio indicators.
+- **Deep Technical Track Details:** Full display of audio and subtitle stream technical descriptors: `Language, Track Title [Codec] (Audio N) — Codec, Sample Rate, Channels, Bitrate` (e.g. `Hindi, Main Audio [DDP 5.1] (Audio 3) — Dolby Digital Plus, 48.0 kHz, 5.1 Ch, 192 kbit/s`).
+- **Immediate Seamless Track Switching:** Switch audio and subtitle streams instantly without video interruption or player re-buffering.
+- **Dedicated Audio Channel Routing:** Switch instantly between `Both`, `Left channel`, and `Right channel` modes with matching OSD notifications.
+- **OpenSubtitles.com REST API v1 Integration:** Native Windows WinHTTP client calculating standard 64-bit MovieHash checksums and regex title parsing to search and download SRT/VTT subtitles online directly into playback.
+
 ---
 
-## ⌨️ Keyboard Shortcuts & OSD Reference (v2.3.0)
+## ⌨️ Keyboard Shortcuts & OSD Reference (v2.4.0)
 
 Every keyboard shortcut executes instantly and displays real-time On-Screen Display (OSD) feedback directly over the video presentation canvas. Shortcuts are fully configurable in **Preferences (`F5`)** under the Keyboard Shortcuts tab, with searchable reference in **Help → Keyboard Shortcuts (`F1`)**.
 
@@ -111,11 +118,14 @@ Every keyboard shortcut executes instantly and displays real-time On-Screen Disp
 | | **Ctrl + 0** | Reset Zoom | `Zoom Reset` |
 | | **Ctrl + Plus / Minus** | Zoom In / Out (±10%) | `Zoom: 110%` / `Zoom: 90%` |
 | | **Ctrl + R** | Rotate Video 90° Clockwise | `Rotation: 90°` |
-| **Audio & Subtitles** | **A** | Cycle Audio Streams | `Audio Track: <Track Name>` |
-| | **L** | Cycle Subtitle Streams | `Subtitle Track: <Track Name>` |
-| | **Alt + L** | Toggle Subtitle Visibility | `Subtitles: On` / `Subtitles: Off` |
+| **Audio & Subtitles** | **Alt + A** / **A** | Cycle Audio Streams | `Audio Track: <Track Name>` |
+| | **Ctrl + Shift + A** | Open Audio Track Menu | Visual Dark Popup Menu |
+| | **L** | Cycle Subtitle Streams | `Subtitle Track: <Track Name>` / `Subtitles: Off` |
+| | **Alt + L** | Toggle Subtitles On / Off | `Subtitle Track: <Name>` / `Subtitles: Off` |
+| | **Ctrl + Shift + L** | Open Subtitle Track Menu | Visual Dark Popup Menu |
+| | **Ctrl + D** | Download Subtitles Online | OpenSubtitles Dialog |
 | | **Alt + Left / Right** | Nudge Subtitle Delay (±100ms) | `Subtitle Delay: -100 ms` |
-| | **Ctrl + Shift + S** | Load External Subtitles | `Subtitles Loaded` |
+| | **Ctrl + Shift + S** | Load External Subtitles | `Subtitle Loaded: <Name>` |
 | **Playlist** | **Page Up / Page Down** | Previous / Next File | `Previous: <Name>` / `Next: <Name>` |
 | | **Ctrl + N** | Open Next Playlist Item | `Next: <Name>` |
 | | **Ctrl + P / F6** | Toggle Playlist Panel | `Playlist Opened` / `Playlist Closed` |
@@ -123,6 +133,7 @@ Every keyboard shortcut executes instantly and displays real-time On-Screen Disp
 | | **Ctrl + H** | Toggle Shuffle Mode | `Shuffle: On` / `Shuffle: Off` |
 | **Information** | **Tab** | Toggle Detailed Telemetry OSD | Full On-Screen Overlay |
 | | **Shift + Tab** | Brief Timestamp Overlay | `00:12:35 / 01:45:20` |
+| | **Ctrl + I** | Playback / System Info Window | Diagnostic Multi-Tab Window |
 | | **Ctrl + F1 / Ctrl + I** | Playback & System Info Dialog | Technical Diagnostics Window |
 | | **Ctrl + C** | Capture Video Screenshot | `Screenshot Saved` |
 | **Application** | **F1** | Keyboard Shortcuts Help | Searchable Shortcut Reference |

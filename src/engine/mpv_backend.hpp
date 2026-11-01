@@ -64,7 +64,7 @@ public:
     void applySubtitleStyle(const SubtitleStyle& style);
     const SubtitleStyle& getSubtitleStyle() const { return m_subStyle; }
     std::vector<MediaTrack> getSubtitleTracks() const;
-    int getSelectedSubtitleTrack() const { return m_selectedSubTrack; }
+    int getSelectedSubtitleTrack() const;
 
     // Streaming & URLs
     bool openUrl(const std::string& url, int cacheSec = 15, int maxBufferMb = 100);
@@ -91,6 +91,9 @@ public:
     bool toggleSubtitleVisibility();
     bool isSubtitlesVisible() const { return m_subtitlesVisible; }
     std::vector<MediaTrack> getAudioTracks() const;
+    int getSelectedAudioTrack() const;
+    void setAudioChannelMode(AudioChannelMode mode);
+    AudioChannelMode getAudioChannelMode() const { return m_channelMode; }
 
     // Hardware acceleration
     void setHardwareAcceleration(bool enabled, const std::string& api = "auto-safe");
@@ -137,8 +140,10 @@ private:
     double m_speed = 1.0;
     double m_subDelay = 0.0;
     SubtitleStyle m_subStyle;
+    int m_selectedAudioTrack = 1;
     int m_selectedSubTrack = 1;
     bool m_subtitlesVisible = true;
+    AudioChannelMode m_channelMode = AudioChannelMode::Both;
     double m_audioDelay = 0.0;
     double m_videoDelay = 0.0;
     std::string m_audioFilter;

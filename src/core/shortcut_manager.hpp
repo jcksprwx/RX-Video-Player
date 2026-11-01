@@ -67,6 +67,12 @@ enum class PlayerAction {
     SubtitleDelayDown,
     SubtitleDelayUp,
     LoadSubtitles,
+    OpenAudioMenu,
+    OpenSubtitleMenu,
+    DownloadOnlineSubtitles,
+    AudioChannelBoth,
+    AudioChannelLeft,
+    AudioChannelRight,
 
     // Information & Settings
     ShowDetailedInfo,

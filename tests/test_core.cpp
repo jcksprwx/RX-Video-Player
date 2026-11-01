@@ -4,6 +4,8 @@
 #include "../src/audio/equalizer.hpp"
 #include "../src/library/media_database.hpp"
 #include "../src/core/shortcut_manager.hpp"
+#include "../src/core/track_formatter.hpp"
+#include "../src/subtitles/opensubtitles_client.hpp"
 #include <iostream>
 #include <cassert>
 #include <filesystem>
@@ -448,6 +450,106 @@ void testShortcuts() {
     std::cout << "  -> testShortcuts PASSED!" << std::endl;
 }
 
+void testAudioTracksAndOpenSubtitles() {
+    std::cout << "[TEST] Running testAudioTracksAndOpenSubtitles..." << std::endl;
+
+    // 1. Language code resolution
+    assert(rx::track_formatter::getLanguageDisplayName("hin") == L"Hindi");
+    assert(rx::track_formatter::getLanguageDisplayName("tel") == L"Telugu");
+    assert(rx::track_formatter::getLanguageDisplayName("tam") == L"Tamil");
+    assert(rx::track_formatter::getLanguageDisplayName("mal") == L"Malayalam");
+    assert(rx::track_formatter::getLanguageDisplayName("spa") == L"Spanish");
+    assert(rx::track_formatter::getLanguageDisplayName("jpn") == L"Japanese");
+    assert(rx::track_formatter::getLanguageDisplayName("eng") == L"English");
+
+    // 2. Audio track menu label & OSD
+    rx::MediaTrack audioTrack;
+    audioTrack.id = 1;
+    audioTrack.type = "audio";
+    audioTrack.lang = "hin";
+    audioTrack.title = "Main Audio";
+    audioTrack.codec = "eac3";
+    audioTrack.channels = 6;
+    audioTrack.sampleRate = 48000;
+    audioTrack.bitrate = 192000;
+
+    std::wstring audioMenuLabel = rx::track_formatter::formatAudioTrackMenuLabel(audioTrack, 1);
+    assert(audioMenuLabel.find(L"Hindi") != std::wstring::npos);
+    assert(audioMenuLabel.find(L"Main Audio") != std::wstring::npos);
+    assert(audioMenuLabel.find(L"DDP 5.1") != std::wstring::npos);
+    assert(audioMenuLabel.find(L"Audio 1") != std::wstring::npos);
+    assert(audioMenuLabel.find(L"Dolby Digital Plus") != std::wstring::npos);
+    assert(audioMenuLabel.find(L"48.0 kHz") != std::wstring::npos);
+    assert(audioMenuLabel.find(L"5.1 Ch") != std::wstring::npos);
+    assert(audioMenuLabel.find(L"192 kbit/s") != std::wstring::npos);
+
+    std::wstring audioOsd = rx::track_formatter::formatAudioTrackOsd(audioTrack);
+    assert(audioOsd.find(L"Hindi") != std::wstring::npos);
+    assert(audioOsd.find(L"Dolby Digital Plus") != std::wstring::npos);
+    assert(audioOsd.find(L"5.1") != std::wstring::npos);
+
+    // 3. Subtitle track menu label & OSD
+    rx::MediaTrack subTrack;
+    subTrack.id = 2;
+    subTrack.type = "sub";
+    subTrack.lang = "eng";
+    subTrack.title = "Full Subtitles";
+    subTrack.codec = "subrip";
+    subTrack.isDefault = true;
+    subTrack.isForced = false;
+
+    std::wstring subMenuLabel = rx::track_formatter::formatSubtitleTrackMenuLabel(subTrack, 1);
+    assert(subMenuLabel.find(L"English") != std::wstring::npos);
+    assert(subMenuLabel.find(L"Full Subtitles") != std::wstring::npos);
+    assert(subMenuLabel.find(L"SRT") != std::wstring::npos);
+    assert(subMenuLabel.find(L"Subtitle 1") != std::wstring::npos);
+    assert(subMenuLabel.find(L"[Default]") != std::wstring::npos);
+
+    std::wstring subOsd = rx::track_formatter::formatSubtitleTrackOsd(subTrack);
+    assert(subOsd.find(L"English") != std::wstring::npos);
+    assert(subOsd.find(L"SRT") != std::wstring::npos);
+
+    // 4. OpenSubtitles Filename Parsing
+    std::string movieFile = "Dunkirk.2017.1080p.BluRay.x264-SPARKS.mkv";
+    auto movieMeta = rx::subtitles::OpenSubtitlesClient::parseFilename(movieFile);
+    assert(movieMeta.title == "Dunkirk");
+    assert(movieMeta.year == 2017);
+    assert(movieMeta.season == 0);
+    assert(movieMeta.episode == 0);
+
+    std::string tvFile = "Breaking.Bad.S05E16.Felina.720p.HDTV.mkv";
+    auto tvMeta = rx::subtitles::OpenSubtitlesClient::parseFilename(tvFile);
+    assert(tvMeta.title == "Breaking Bad");
+    assert(tvMeta.season == 5);
+    assert(tvMeta.episode == 16);
+
+    // 5. OpenSubtitles MovieHash Formatting
+    uint64_t hashVal = 0x8e245d9679d31e12ULL;
+    std::string hashStr = rx::subtitles::OpenSubtitlesClient::formatMovieHash(hashVal);
+    assert(hashStr == "8e245d9679d31e12");
+
+    // 6. Channel mode in settings persistence
+    auto& s = rx::Settings::instance();
+    s.channelMode = rx::AudioChannelMode::Left;
+    s.opensubtitles.apiKey = "rx-sub-test-api-key";
+    s.opensubtitles.preferredLanguages = "eng,hin";
+    s.opensubtitles.autoSearch = true;
+    s.opensubtitles.applyAfterDownload = true;
+    s.save();
+
+    s.channelMode = rx::AudioChannelMode::Both;
+    s.opensubtitles.apiKey.clear();
+    s.load();
+
+    assert(s.channelMode == rx::AudioChannelMode::Left);
+    assert(s.opensubtitles.apiKey == "rx-sub-test-api-key");
+    assert(s.opensubtitles.preferredLanguages == "eng,hin");
+    assert(s.opensubtitles.autoSearch == true);
+    assert(s.opensubtitles.applyAfterDownload == true);
+
+    std::cout << "  -> testAudioTracksAndOpenSubtitles PASSED!" << std::endl;
+}
+
 int main() {
     std::cout << "========================================" << std::endl;
     std::cout << "RX Media Player Automated Test Runner" << std::endl;
@@ -462,6 +564,7 @@ int main() {
     testSubtitleAndStreaming();
     testMediaDatabase();
     testShortcuts();
+    testAudioTracksAndOpenSubtitles();
 
     std::cout << "========================================" << std::endl;
     std::cout << "ALL TESTS PASSED SUCCESSFULLY!" << std::endl;

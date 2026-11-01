@@ -7,7 +7,7 @@
 
 namespace rx {
 
-inline constexpr const char* kAppVersion = "2.3.0";
+inline constexpr const char* kAppVersion = "2.4.0";
 inline constexpr const char* kAppAuthor  = "Rituraj";
 inline constexpr const char* kAppName    = "RX Media Player";
 
@@ -26,14 +26,31 @@ enum class RepeatMode {
     RepeatOne
 };
 
+enum class AudioChannelMode {
+    Both = 0,
+    Left = 1,
+    Right = 2
+};
+
 struct MediaTrack {
     int id = 0;
     std::string type;      // "video", "audio", "sub"
     std::string title;
     std::string lang;
     std::string codec;
+    std::string codecDesc;
+    int channels = 0;
+    int sampleRate = 0;
+    int bitrate = 0;
     bool selected = false;
     bool external = false;
+    bool isDefault = false;
+    bool isForced = false;
+    std::string externalFilename;
+
+    MediaTrack() = default;
+    MediaTrack(int id_, std::string type_, std::string title_, std::string lang_, std::string codec_, bool sel = false, bool ext = false)
+        : id(id_), type(std::move(type_)), title(std::move(title_)), lang(std::move(lang_)), codec(std::move(codec_)), selected(sel), external(ext) {}
 };
 
 struct MediaInfo {

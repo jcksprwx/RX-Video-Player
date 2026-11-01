@@ -11,6 +11,8 @@
 #include "dialogs/bookmark_dialog.hpp"
 #include "dialogs/preferences_dialog.hpp"
 #include "dialogs/shortcut_help_dialog.hpp"
+#include "dialogs/online_subtitles_dialog.hpp"
+#include "menus/track_popup_menu.hpp"
 #include "../core/shortcut_manager.hpp"
 #include "../engine/mpv_backend.hpp"
 #include "../playlist/playlist_manager.hpp"
@@ -58,6 +60,9 @@ private:
     void showInfoDialog();
     void showPreferencesDialog();
     void showShortcutHelpDialog();
+    void showOnlineSubtitlesDialog();
+    void showAudioTrackMenu(int screenX, int screenY);
+    void showSubtitleTrackMenu(int screenX, int screenY);
     void showAboutDialog();
     void executeAction(PlayerAction action);
     void showContextMenu(int screenX, int screenY);
@@ -118,6 +123,8 @@ private:
     std::unique_ptr<RXBookmarkDialog> m_bmDialog;
     std::unique_ptr<RXPreferencesDialog> m_prefsDialog;
     std::unique_ptr<RXShortcutHelpDialog> m_shortcutHelpDialog;
+    std::unique_ptr<RXOnlineSubtitlesDialog> m_onlineSubsDialog;
+    RXTrackMenu m_trackMenu;
 
     // State
     bool m_isFullscreen = false;

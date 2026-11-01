@@ -74,6 +74,7 @@ void Settings::load(const std::string& path) {
             else if (key == "muted") audio.muted = (val == "1" || val == "true");
             else if (key == "deviceId") audio.deviceId = val;
             else if (key == "exclusiveMode") audio.exclusiveMode = (val == "1" || val == "true");
+            else if (key == "channelMode") channelMode = static_cast<AudioChannelMode>(std::stoi(val));
             else if (key == "delayMs") audio.delayMs = std::stod(val);
             else if (key == "eqEnabled") audio.equalizer.enabled = (val == "1" || val == "true");
             else if (key == "eqPreset") audio.equalizer.preset = static_cast<audio::EqualizerPreset>(std::stoi(val));
@@ -127,6 +128,11 @@ void Settings::load(const std::string& path) {
             else if (key == "bold") subtitle.style.bold = (val == "1" || val == "true");
             else if (key == "italic") subtitle.style.italic = (val == "1" || val == "true");
             else if (key == "delayMs") { subtitle.delayMs = std::stod(val); subtitle.style.delaySec = std::stod(val) / 1000.0; }
+        } else if (section == "OpenSubtitles") {
+            if (key == "apiKey") opensubtitles.apiKey = val;
+            else if (key == "preferredLanguages") opensubtitles.preferredLanguages = val;
+            else if (key == "autoSearch") opensubtitles.autoSearch = (val == "1" || val == "true");
+            else if (key == "applyAfterDownload") opensubtitles.applyAfterDownload = (val == "1" || val == "true");
         } else if (section == "Network") {
             if (key == "cacheSec") network.cacheSec = std::stoi(val);
             else if (key == "maxBufferMb") network.maxBufferMb = std::stoi(val);
@@ -162,6 +168,7 @@ void Settings::save(const std::string& path) {
     file << "muted=" << (audio.muted ? "1" : "0") << "\n";
     file << "deviceId=" << audio.deviceId << "\n";
     file << "exclusiveMode=" << (audio.exclusiveMode ? "1" : "0") << "\n";
+    file << "channelMode=" << static_cast<int>(channelMode) << "\n";
     file << "delayMs=" << audio.delayMs << "\n";
     file << "eqEnabled=" << (audio.equalizer.enabled ? "1" : "0") << "\n";
     file << "eqPreset=" << static_cast<int>(audio.equalizer.preset) << "\n";
@@ -216,6 +223,12 @@ void Settings::save(const std::string& path) {
     file << "bold=" << (subtitle.style.bold ? "1" : "0") << "\n";
     file << "italic=" << (subtitle.style.italic ? "1" : "0") << "\n";
     file << "delayMs=" << (subtitle.style.delaySec * 1000.0) << "\n\n";
+
+    file << "[OpenSubtitles]\n";
+    file << "apiKey=" << opensubtitles.apiKey << "\n";
+    file << "preferredLanguages=" << opensubtitles.preferredLanguages << "\n";
+    file << "autoSearch=" << (opensubtitles.autoSearch ? "1" : "0") << "\n";
+    file << "applyAfterDownload=" << (opensubtitles.applyAfterDownload ? "1" : "0") << "\n\n";
 
     file << "[Network]\n";
     file << "cacheSec=" << network.cacheSec << "\n";
