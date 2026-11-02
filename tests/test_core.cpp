@@ -804,7 +804,7 @@ void testFullscreenAutoHideAutoShow() {
     std::cout << "[TEST] Running testFullscreenAutoHideAutoShow..." << std::endl;
 
     // 1. Version check
-    assert(std::string(rx::kAppVersion) == "2.7.1");
+    assert(std::string(rx::kAppVersion) == "2.7.2");
 
     // 2. Fullscreen auto-hide & auto-show state machine simulation
     bool isFullscreen = false;
@@ -822,17 +822,13 @@ void testFullscreenAutoHideAutoShow() {
     controlsHidden = false;
     cursorHidden = false;
     lastActivityTime = 5000;
+    lastCursorPos = { 960, 1040 }; // Mouse resting on fullscreen button in bottom toolbar
     assert(topBarVisible && bottomBarVisible && !controlsHidden && !cursorHidden);
 
-    // Inactivity check after 2500ms over center of screen (H = 1080, y = 500)
-    int screenH = 1080;
-    POINT ptCenter{ 960, 500 };
+    // Inactivity check after 2500ms (now = 7500):
+    // Even if cursor rests at bottom toolbar (y = 1040), 2s of inactivity hides controls & cursor
     DWORD now = 7500;
-    bool hoveringTop = (ptCenter.y >= 0 && ptCenter.y <= 48);
-    bool hoveringBottom = (ptCenter.y >= screenH - 85 && ptCenter.y <= screenH);
-    assert(!hoveringTop && !hoveringBottom);
-
-    if (now - lastActivityTime >= 2000 && !hoveringTop && !hoveringBottom) {
+    if (now - lastActivityTime >= 2000) {
         topBarVisible = false;
         bottomBarVisible = false;
         controlsHidden = true;
@@ -840,10 +836,46 @@ void testFullscreenAutoHideAutoShow() {
     }
     assert(!topBarVisible && !bottomBarVisible && controlsHidden && cursorHidden);
 
-    // Any mouse movement (e.g. moving from 960, 500 to 970, 505) triggers auto-show immediately
-    POINT ptMoved{ 970, 505 };
-    if (ptMoved.x != lastCursorPos.x || ptMoved.y != lastCursorPos.y) {
-        lastCursorPos = ptMoved;
+    // Synthetic WM_MOUSEMOVE delivered by OS at exact same position (dx = 0, dy = 0)
+    POINT ptSynthetic{ 960, 1040 };
+    int dx = std::abs(ptSynthetic.x - lastCursorPos.x);
+    int dy = std::abs(ptSynthetic.y - lastCursorPos.y);
+    if (dx >= 4 || dy >= 4) {
+        // Genuine move
+        lastCursorPos = ptSynthetic;
+        lastActivityTime = now;
+        cursorHidden = false;
+        if (isFullscreen) {
+            topBarVisible = true;
+            bottomBarVisible = true;
+            controlsHidden = false;
+        }
+    }
+    // Controls must STAY hidden despite synthetic WM_MOUSEMOVE!
+    assert(!topBarVisible && !bottomBarVisible && controlsHidden && cursorHidden);
+
+    // Minor 1-pixel jitter (e.g. 961, 1040) is ignored (dx = 1 < 4)
+    POINT ptJitter{ 961, 1040 };
+    dx = std::abs(ptJitter.x - lastCursorPos.x);
+    dy = std::abs(ptJitter.y - lastCursorPos.y);
+    if (dx >= 4 || dy >= 4) {
+        lastCursorPos = ptJitter;
+        lastActivityTime = now;
+        cursorHidden = false;
+        if (isFullscreen) {
+            topBarVisible = true;
+            bottomBarVisible = true;
+            controlsHidden = false;
+        }
+    }
+    assert(!topBarVisible && !bottomBarVisible && controlsHidden && cursorHidden);
+
+    // Genuine user physical mouse movement (dx >= 4 or dy >= 4, e.g. moving to 966, 1040)
+    POINT ptPhysicalMove{ 966, 1040 };
+    dx = std::abs(ptPhysicalMove.x - lastCursorPos.x);
+    dy = std::abs(ptPhysicalMove.y - lastCursorPos.y);
+    if (dx >= 4 || dy >= 4) {
+        lastCursorPos = ptPhysicalMove;
         lastActivityTime = now;
         cursorHidden = false;
         if (isFullscreen) {
@@ -853,28 +885,13 @@ void testFullscreenAutoHideAutoShow() {
         }
     }
     assert(topBarVisible && bottomBarVisible && !controlsHidden && !cursorHidden);
+
     (void)topBarVisible;
     (void)bottomBarVisible;
     (void)controlsHidden;
     (void)cursorHidden;
     (void)lastCursorPos;
     (void)lastActivityTime;
-
-    // Hovering over bottom toolbar prevents auto-hide even after 5 seconds
-    POINT ptBottomBar{ 960, 1040 }; // inside bottom toolbar (1080 - 85 = 995)
-    now = 13000;
-    hoveringTop = (ptBottomBar.y >= 0 && ptBottomBar.y <= 48);
-    hoveringBottom = (ptBottomBar.y >= screenH - 85 && ptBottomBar.y <= screenH);
-    assert(hoveringBottom);
-    if (hoveringBottom) {
-        lastActivityTime = now; // Prevent hide
-    }
-    assert(topBarVisible && bottomBarVisible);
-
-    // Hovering over top bar prevents auto-hide
-    POINT ptTopBar{ 500, 25 }; // inside top bar (0 to 48)
-    hoveringTop = (ptTopBar.y >= 0 && ptTopBar.y <= 48);
-    assert(hoveringTop);
 
     std::cout << "  -> testFullscreenAutoHideAutoShow PASSED!" << std::endl;
 }

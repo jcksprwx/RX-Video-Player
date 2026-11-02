@@ -98,10 +98,6 @@ LRESULT CALLBACK RXIconButton::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                     TrackMouseEvent(&tme);
                     InvalidateRect(hwnd, nullptr, FALSE);
                 }
-                HWND parent = GetParent(hwnd);
-                if (parent) {
-                    PostMessageW(parent, WM_MOUSEMOVE, wParam, lParam);
-                }
                 return 0;
             }
             case WM_MOUSELEAVE: {
@@ -290,9 +286,6 @@ LRESULT CALLBACK RXTimelineStrip::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LP
                 return 0;
             case WM_MOUSEMOVE:
                 pThis->onMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam);
-                if (pThis->m_parent) {
-                    PostMessageW(pThis->m_parent, WM_MOUSEMOVE, wParam, lParam);
-                }
                 return 0;
             case WM_LBUTTONUP:
                 pThis->onLButtonUp(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
@@ -661,9 +654,6 @@ LRESULT CALLBACK RXTitleBar::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                 return 1;
             case WM_MOUSEMOVE:
                 pThis->onMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
-                if (pThis->m_parent) {
-                    PostMessageW(pThis->m_parent, WM_MOUSEMOVE, wParam, lParam);
-                }
                 return 0;
             case WM_LBUTTONDOWN:
                 pThis->onLButtonDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));

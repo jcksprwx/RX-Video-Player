@@ -1056,7 +1056,7 @@ void RXMainWindow::showShortcutHelpDialog() {
 
 void RXMainWindow::showAboutDialog() {
     std::wstring msg =
-        L"RX Media Player v2.5.0 (Windows 64-bit)\n\n"
+        L"RX Media Player v2.7.2 (Windows 64-bit)\n\n"
         L"Author & Lead Architect: Rituraj\n"
         L"Repository: https://github.com/jcksprwx/RX-Video-Player\n\n"
         L"Architecture & Subsystems:\n"
@@ -2318,10 +2318,16 @@ void RXMainWindow::checkAutoHideInactivity() {
     // Detect physical mouse cursor movement anywhere on screen via GetCursorPos
     POINT pt;
     if (GetCursorPos(&pt)) {
-        if (pt.x != m_lastCursorPos.x || pt.y != m_lastCursorPos.y) {
+        if (m_lastCursorPos.x < 0 && m_lastCursorPos.y < 0) {
             m_lastCursorPos = pt;
-            onAnyUserActivity();
-            return;
+        } else {
+            int dx = std::abs(pt.x - m_lastCursorPos.x);
+            int dy = std::abs(pt.y - m_lastCursorPos.y);
+            if (dx >= 4 || dy >= 4) {
+                m_lastCursorPos = pt;
+                onAnyUserActivity();
+                return;
+            }
         }
     }
 
@@ -2346,29 +2352,9 @@ void RXMainWindow::checkAutoHideInactivity() {
         return;
     }
 
-    POINT clientPt = pt;
-    ScreenToClient(m_mainHwnd, &clientPt);
-
-    RECT rc;
-    GetClientRect(m_mainHwnd, &rc);
-    int H = rc.bottom - rc.top;
-    int W = rc.right - rc.left;
-
-    // Do NOT hide while cursor is hovering over the top bar
-    if (m_topBarVisible && clientPt.x >= 0 && clientPt.x <= W && clientPt.y >= 0 && clientPt.y <= 48) {
-        m_lastMouseMoveTime = GetTickCount();
-        return;
-    }
-
-    // Do NOT hide while cursor is hovering over bottom toolbar
-    if (m_bottomBarVisible && clientPt.x >= 0 && clientPt.x <= W && clientPt.y >= H - 85 && clientPt.y <= H) {
-        m_lastMouseMoveTime = GetTickCount();
-        return;
-    }
-
     DWORD now = GetTickCount();
     if (now - m_lastMouseMoveTime >= 2000) {
-        // 2 seconds of inactivity in video area
+        // 2 seconds of inactivity: auto-hide controls and cursor
         if (m_topBarVisible || m_bottomBarVisible) {
             setFullscreenControlsVisible(false);
         }
@@ -2434,13 +2420,27 @@ LRESULT CALLBACK RXMainWindow::mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, L
             case WM_DROPFILES:
                 pThis->onDropFiles(reinterpret_cast<HDROP>(wParam));
                 return 0;
-            case WM_MOUSEMOVE:
-                pThis->onAnyUserActivity();
+            case WM_MOUSEMOVE: {
+                POINT curPt;
+                if (GetCursorPos(&curPt)) {
+                    if (pThis->m_lastCursorPos.x < 0 && pThis->m_lastCursorPos.y < 0) {
+                        pThis->m_lastCursorPos = curPt;
+                    } else {
+                        int dx = std::abs(curPt.x - pThis->m_lastCursorPos.x);
+                        int dy = std::abs(curPt.y - pThis->m_lastCursorPos.y);
+                        if (dx >= 4 || dy >= 4) {
+                            pThis->m_lastCursorPos = curPt;
+                            pThis->onAnyUserActivity();
+                        }
+                    }
+                }
                 break;
+            }
             case WM_KEYDOWN:
                 pThis->onKeyDown(wParam);
                 return 0;
             case WM_COMMAND: {
+                pThis->onAnyUserActivity();
                 WORD id = LOWORD(wParam);
                 if (id >= IDM_RECENT_BASE && id < IDM_RECENT_BASE + 20) {
                     auto recents = library::MediaDatabase::instance().getRecentHistory(8);
@@ -2631,18 +2631,9 @@ LRESULT CALLBACK RXMainWindow::mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, L
                 return 0;
             }
             case WM_SETCURSOR: {
-                if (pThis->m_isFullscreen && pThis->m_cursorHidden) {
-                    POINT pt;
-                    GetCursorPos(&pt);
-                    ScreenToClient(hwnd, &pt);
-                    RECT rc;
-                    GetClientRect(hwnd, &rc);
-                    bool overTop = pThis->m_topBarVisible && (pt.y >= 0 && pt.y <= 48);
-                    bool overBottom = pThis->m_bottomBarVisible && (pt.y >= rc.bottom - 85 && pt.y <= rc.bottom);
-                    if (!overTop && !overBottom) {
-                        SetCursor(nullptr);
-                        return TRUE;
-                    }
+                if (pThis && pThis->m_isFullscreen && pThis->m_cursorHidden) {
+                    SetCursor(nullptr);
+                    return TRUE;
                 }
                 break;
             }
@@ -2750,7 +2741,19 @@ LRESULT CALLBACK RXMainWindow::videoWndProc(HWND hwnd, UINT msg, WPARAM wParam, 
                 pThis->onKeyDown(wParam);
                 return 0;
             case WM_MOUSEMOVE: {
-                pThis->onAnyUserActivity();
+                POINT curPt;
+                if (GetCursorPos(&curPt)) {
+                    if (pThis->m_lastCursorPos.x < 0 && pThis->m_lastCursorPos.y < 0) {
+                        pThis->m_lastCursorPos = curPt;
+                    } else {
+                        int dx = std::abs(curPt.x - pThis->m_lastCursorPos.x);
+                        int dy = std::abs(curPt.y - pThis->m_lastCursorPos.y);
+                        if (dx >= 4 || dy >= 4) {
+                            pThis->m_lastCursorPos = curPt;
+                            pThis->onAnyUserActivity();
+                        }
+                    }
+                }
 
                 if (pThis->m_engine.getState() == PlaybackState::Stopped || pThis->m_engine.getState() == PlaybackState::Idle) {
                     POINT pt{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
@@ -2840,11 +2843,24 @@ LRESULT CALLBACK RXMainWindow::controlBarWndProc(HWND hwnd, UINT msg, WPARAM wPa
             EndPaint(hwnd, &ps);
             return 0;
         }
-        case WM_MOUSEMOVE:
+        case WM_MOUSEMOVE: {
             if (pThis) {
-                pThis->onAnyUserActivity();
+                POINT curPt;
+                if (GetCursorPos(&curPt)) {
+                    if (pThis->m_lastCursorPos.x < 0 && pThis->m_lastCursorPos.y < 0) {
+                        pThis->m_lastCursorPos = curPt;
+                    } else {
+                        int dx = std::abs(curPt.x - pThis->m_lastCursorPos.x);
+                        int dy = std::abs(curPt.y - pThis->m_lastCursorPos.y);
+                        if (dx >= 4 || dy >= 4) {
+                            pThis->m_lastCursorPos = curPt;
+                            pThis->onAnyUserActivity();
+                        }
+                    }
+                }
             }
             break;
+        }
         case WM_KEYDOWN:
             if (pThis) {
                 pThis->onKeyDown(wParam);
@@ -2853,6 +2869,10 @@ LRESULT CALLBACK RXMainWindow::controlBarWndProc(HWND hwnd, UINT msg, WPARAM wPa
             break;
         case WM_SETCURSOR: {
             if (pThis) {
+                if (pThis->m_isFullscreen && pThis->m_cursorHidden) {
+                    SetCursor(nullptr);
+                    return TRUE;
+                }
                 POINT pt;
                 GetCursorPos(&pt);
                 ScreenToClient(hwnd, &pt);
