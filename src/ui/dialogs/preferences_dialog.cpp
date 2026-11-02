@@ -1040,7 +1040,7 @@ LRESULT CALLBACK RXPreferencesDialog::dlgProc(HWND hwnd, UINT msg, WPARAM wParam
                     RECT rcAbout{ 205, 60, rcClient.right - 20, rcClient.bottom - 60 };
                     std::wstring aboutText =
                         L"RX Media Player — Professional Desktop Multimedia Engine\n\n"
-                        L"Version: 2.7.0 (Windows 64-bit)\n"
+                        L"Version: 2.7.1 (Windows 64-bit)\n"
                         L"Lead Architect: Rituraj\n"
                         L"Repository: https://github.com/jcksprwx/RX-Video-Player\n\n"
                         L"Core Capabilities:\n"

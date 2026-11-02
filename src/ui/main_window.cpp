@@ -444,6 +444,8 @@ bool RXMainWindow::create(HINSTANCE hInstance, int nCmdShow) {
         ShowWindow(m_mainHwnd, nCmdShow);
     }
 
+    GetCursorPos(&m_lastCursorPos);
+    m_lastMouseMoveTime = GetTickCount();
     startAutoHideTimer();
     Settings::instance().save();
     return true;
@@ -968,12 +970,13 @@ void RXMainWindow::toggleFullscreen() {
         mi.cbSize = sizeof(MONITORINFO);
         GetMonitorInfoW(hMon, &mi);
 
-        // Hide controls by default in fullscreen
-        m_topBarVisible = false;
-        m_bottomBarVisible = false;
-        m_controlsHidden = true;
+        // In fullscreen: controls start visible for 2 seconds, then auto-hide on inactivity
+        m_topBarVisible = true;
+        m_bottomBarVisible = true;
+        m_controlsHidden = false;
         m_cursorHidden = false;
         m_lastMouseMoveTime = GetTickCount();
+        GetCursorPos(&m_lastCursorPos);
 
         SetWindowPos(m_mainHwnd, HWND_TOPMOST,
                      mi.rcMonitor.left, mi.rcMonitor.top,
@@ -1776,6 +1779,8 @@ void RXMainWindow::onDropFiles(HDROP hDrop) {
 }
 
 void RXMainWindow::onKeyDown(WPARAM key) {
+    onAnyUserActivity();
+
     // Suppress shortcuts when an edit box or text field has focus
     HWND focused = GetFocus();
     if (focused) {
@@ -2196,15 +2201,26 @@ void RXMainWindow::executeAction(PlayerAction action) {
 }
 
 void RXMainWindow::startAutoHideTimer() {
-    m_autoHideTimerId = SetTimer(m_mainHwnd, TIMER_AUTOHIDE, 250, nullptr);
+    m_autoHideTimerId = SetTimer(m_mainHwnd, TIMER_AUTOHIDE, 100, nullptr);
 }
 
-void RXMainWindow::resetAutoHide() {
+void RXMainWindow::onAnyUserActivity() {
     m_lastMouseMoveTime = GetTickCount();
+
     if (m_cursorHidden) {
         m_cursorHidden = false;
         SetCursor(LoadCursor(nullptr, IDC_ARROW));
     }
+
+    if (m_isFullscreen) {
+        if (!m_topBarVisible || !m_bottomBarVisible) {
+            setFullscreenControlsVisible(true);
+        }
+    }
+}
+
+void RXMainWindow::resetAutoHide() {
+    onAnyUserActivity();
     startAutoHideTimer();
 }
 
@@ -2227,6 +2243,7 @@ void RXMainWindow::updateFullscreenControlsLayout() {
         m_titleBar.move(0, 0, width, topBarHeight);
         ShowWindow(m_titleBar.getHwnd(), SW_SHOW);
         SetWindowPos(m_titleBar.getHwnd(), HWND_TOP, 0, 0, width, topBarHeight, SWP_SHOWWINDOW);
+        InvalidateRect(m_titleBar.getHwnd(), nullptr, TRUE);
     } else {
         ShowWindow(m_titleBar.getHwnd(), SW_HIDE);
         m_titleBar.move(0, -topBarHeight, width, topBarHeight);
@@ -2246,6 +2263,8 @@ void RXMainWindow::updateFullscreenControlsLayout() {
         ShowWindow(m_controlBarHwnd, SW_SHOW);
         SetWindowPos(m_timelineStrip.getHwnd(), HWND_TOP, 0, timeY, width, timelineHeight, SWP_SHOWWINDOW);
         SetWindowPos(m_controlBarHwnd, HWND_TOP, 0, barY, width, controlBarHeight, SWP_SHOWWINDOW);
+        InvalidateRect(m_timelineStrip.getHwnd(), nullptr, TRUE);
+        InvalidateRect(m_controlBarHwnd, nullptr, TRUE);
     } else {
         ShowWindow(m_timelineStrip.getHwnd(), SW_HIDE);
         ShowWindow(m_controlBarHwnd, SW_HIDE);
@@ -2259,6 +2278,9 @@ void RXMainWindow::setFullscreenTopBarVisible(bool visible) {
     m_topBarVisible = visible;
     m_controlsHidden = (!m_topBarVisible && !m_bottomBarVisible);
     updateFullscreenControlsLayout();
+    if (!visible && m_videoHwnd) {
+        InvalidateRect(m_videoHwnd, nullptr, TRUE);
+    }
 }
 
 void RXMainWindow::setFullscreenBottomBarVisible(bool visible) {
@@ -2266,50 +2288,51 @@ void RXMainWindow::setFullscreenBottomBarVisible(bool visible) {
     m_bottomBarVisible = visible;
     m_controlsHidden = (!m_topBarVisible && !m_bottomBarVisible);
     updateFullscreenControlsLayout();
+    if (!visible && m_videoHwnd) {
+        InvalidateRect(m_videoHwnd, nullptr, TRUE);
+    }
+}
+
+void RXMainWindow::setFullscreenControlsVisible(bool visible) {
+    if (m_topBarVisible == visible && m_bottomBarVisible == visible) return;
+    m_topBarVisible = visible;
+    m_bottomBarVisible = visible;
+    m_controlsHidden = !visible;
+    updateFullscreenControlsLayout();
+    if (!visible && m_videoHwnd) {
+        InvalidateRect(m_videoHwnd, nullptr, TRUE);
+    }
 }
 
 void RXMainWindow::onMouseMoveFullscreen(int clientX, int clientY) {
+    (void)clientX;
+    (void)clientY;
     if (!m_isFullscreen) return;
-
-    RECT rc;
-    GetClientRect(m_mainHwnd, &rc);
-    int H = rc.bottom - rc.top;
-    int W = rc.right - rc.left;
-
-    if (m_cursorHidden) {
-        m_cursorHidden = false;
-        SetCursor(LoadCursor(nullptr, IDC_ARROW));
-    }
-    m_lastMouseMoveTime = GetTickCount();
-
-    // Top reveal zone: top 12 pixels
-    if (clientY <= 12 && clientX >= 0 && clientX <= W) {
-        if (!m_topBarVisible) {
-            setFullscreenTopBarVisible(true);
-        }
-    }
-
-    // Bottom reveal zone: bottom 12 pixels
-    if (clientY >= H - 12 && clientX >= 0 && clientX <= W) {
-        if (!m_bottomBarVisible) {
-            setFullscreenBottomBarVisible(true);
-        }
-    }
-
+    onAnyUserActivity();
     startAutoHideTimer();
 }
 
 void RXMainWindow::checkAutoHideInactivity() {
     if (!m_isFullscreen) return;
 
+    // Detect physical mouse cursor movement anywhere on screen via GetCursorPos
+    POINT pt;
+    if (GetCursorPos(&pt)) {
+        if (pt.x != m_lastCursorPos.x || pt.y != m_lastCursorPos.y) {
+            m_lastCursorPos = pt;
+            onAnyUserActivity();
+            return;
+        }
+    }
+
     // Do NOT hide while menus or dialogs are active
-    if (m_trackMenu.isOpen()) return;
-    if (m_subDialog && m_subDialog->isVisible()) return;
-    if (m_prefsDialog && m_prefsDialog->isVisible()) return;
-    if (m_infoDialog && m_infoDialog->isVisible()) return;
-    if (m_bmDialog && m_bmDialog->isVisible()) return;
-    if (m_urlDialog && m_urlDialog->isVisible()) return;
-    if (m_onlineSubsDialog && m_onlineSubsDialog->isVisible()) return;
+    if (m_trackMenu.isOpen()) { m_lastMouseMoveTime = GetTickCount(); return; }
+    if (m_subDialog && m_subDialog->isVisible()) { m_lastMouseMoveTime = GetTickCount(); return; }
+    if (m_prefsDialog && m_prefsDialog->isVisible()) { m_lastMouseMoveTime = GetTickCount(); return; }
+    if (m_infoDialog && m_infoDialog->isVisible()) { m_lastMouseMoveTime = GetTickCount(); return; }
+    if (m_bmDialog && m_bmDialog->isVisible()) { m_lastMouseMoveTime = GetTickCount(); return; }
+    if (m_urlDialog && m_urlDialog->isVisible()) { m_lastMouseMoveTime = GetTickCount(); return; }
+    if (m_onlineSubsDialog && m_onlineSubsDialog->isVisible()) { m_lastMouseMoveTime = GetTickCount(); return; }
 
     // Do NOT hide while user is scrubbing timeline or volume
     if (m_timelineStrip.isDragging()) {
@@ -2317,9 +2340,14 @@ void RXMainWindow::checkAutoHideInactivity() {
         return;
     }
 
-    POINT pt;
-    GetCursorPos(&pt);
-    ScreenToClient(m_mainHwnd, &pt);
+    // Do NOT hide while stopped or idle (empty state welcome screen)
+    if (m_engine.getState() == PlaybackState::Stopped || m_engine.getState() == PlaybackState::Idle) {
+        m_lastMouseMoveTime = GetTickCount();
+        return;
+    }
+
+    POINT clientPt = pt;
+    ScreenToClient(m_mainHwnd, &clientPt);
 
     RECT rc;
     GetClientRect(m_mainHwnd, &rc);
@@ -2327,13 +2355,13 @@ void RXMainWindow::checkAutoHideInactivity() {
     int W = rc.right - rc.left;
 
     // Do NOT hide while cursor is hovering over the top bar
-    if (m_topBarVisible && pt.x >= 0 && pt.x <= W && pt.y >= 0 && pt.y <= 42) {
+    if (m_topBarVisible && clientPt.x >= 0 && clientPt.x <= W && clientPt.y >= 0 && clientPt.y <= 48) {
         m_lastMouseMoveTime = GetTickCount();
         return;
     }
 
     // Do NOT hide while cursor is hovering over bottom toolbar
-    if (m_bottomBarVisible && pt.x >= 0 && pt.x <= W && pt.y >= H - 76 && pt.y <= H) {
+    if (m_bottomBarVisible && clientPt.x >= 0 && clientPt.x <= W && clientPt.y >= H - 85 && clientPt.y <= H) {
         m_lastMouseMoveTime = GetTickCount();
         return;
     }
@@ -2341,8 +2369,9 @@ void RXMainWindow::checkAutoHideInactivity() {
     DWORD now = GetTickCount();
     if (now - m_lastMouseMoveTime >= 2000) {
         // 2 seconds of inactivity in video area
-        if (m_topBarVisible) setFullscreenTopBarVisible(false);
-        if (m_bottomBarVisible) setFullscreenBottomBarVisible(false);
+        if (m_topBarVisible || m_bottomBarVisible) {
+            setFullscreenControlsVisible(false);
+        }
         if (!m_cursorHidden) {
             m_cursorHidden = true;
             SetCursor(nullptr);
@@ -2405,6 +2434,9 @@ LRESULT CALLBACK RXMainWindow::mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, L
             case WM_DROPFILES:
                 pThis->onDropFiles(reinterpret_cast<HDROP>(wParam));
                 return 0;
+            case WM_MOUSEMOVE:
+                pThis->onAnyUserActivity();
+                break;
             case WM_KEYDOWN:
                 pThis->onKeyDown(wParam);
                 return 0;
@@ -2605,8 +2637,8 @@ LRESULT CALLBACK RXMainWindow::mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, L
                     ScreenToClient(hwnd, &pt);
                     RECT rc;
                     GetClientRect(hwnd, &rc);
-                    bool overTop = pThis->m_topBarVisible && (pt.y >= 0 && pt.y <= 42);
-                    bool overBottom = pThis->m_bottomBarVisible && (pt.y >= rc.bottom - 76 && pt.y <= rc.bottom);
+                    bool overTop = pThis->m_topBarVisible && (pt.y >= 0 && pt.y <= 48);
+                    bool overBottom = pThis->m_bottomBarVisible && (pt.y >= rc.bottom - 85 && pt.y <= rc.bottom);
                     if (!overTop && !overBottom) {
                         SetCursor(nullptr);
                         return TRUE;
@@ -2673,6 +2705,7 @@ LRESULT CALLBACK RXMainWindow::videoWndProc(HWND hwnd, UINT msg, WPARAM wParam, 
                 pThis->toggleFullscreen();
                 return 0;
             case WM_RBUTTONUP: {
+                pThis->onAnyUserActivity();
                 POINT pt{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
                 ClientToScreen(hwnd, &pt);
                 pThis->showContextMenu(pt.x, pt.y);
@@ -2717,11 +2750,7 @@ LRESULT CALLBACK RXMainWindow::videoWndProc(HWND hwnd, UINT msg, WPARAM wParam, 
                 pThis->onKeyDown(wParam);
                 return 0;
             case WM_MOUSEMOVE: {
-                if (pThis->m_isFullscreen) {
-                    pThis->onMouseMoveFullscreen(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
-                } else {
-                    pThis->resetAutoHide();
-                }
+                pThis->onAnyUserActivity();
 
                 if (pThis->m_engine.getState() == PlaybackState::Stopped || pThis->m_engine.getState() == PlaybackState::Idle) {
                     POINT pt{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
@@ -2758,6 +2787,7 @@ LRESULT CALLBACK RXMainWindow::videoWndProc(HWND hwnd, UINT msg, WPARAM wParam, 
                 break;
             }
             case WM_MOUSEWHEEL: {
+                pThis->onAnyUserActivity();
                 short delta = GET_WHEEL_DELTA_WPARAM(wParam);
                 int change = (delta > 0) ? 5 : -5;
                 int vol = rx::utils::clamp(pThis->m_engine.getVolume() + change, 0, 100);
@@ -2812,12 +2842,7 @@ LRESULT CALLBACK RXMainWindow::controlBarWndProc(HWND hwnd, UINT msg, WPARAM wPa
         }
         case WM_MOUSEMOVE:
             if (pThis) {
-                pThis->m_lastMouseMoveTime = GetTickCount();
-                if (pThis->m_cursorHidden) {
-                    pThis->m_cursorHidden = false;
-                    SetCursor(LoadCursor(nullptr, IDC_ARROW));
-                }
-                pThis->startAutoHideTimer();
+                pThis->onAnyUserActivity();
             }
             break;
         case WM_KEYDOWN:

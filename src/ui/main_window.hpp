@@ -87,6 +87,8 @@ private:
     void updateFullscreenControlsLayout();
     void setFullscreenTopBarVisible(bool visible);
     void setFullscreenBottomBarVisible(bool visible);
+    void setFullscreenControlsVisible(bool visible);
+    void onAnyUserActivity();
     void checkAutoHideInactivity();
     void onMouseMoveFullscreen(int clientX, int clientY);
 
@@ -142,6 +144,7 @@ private:
     bool m_bottomBarVisible = true;
     bool m_cursorHidden = false;
     DWORD m_lastMouseMoveTime = 0;
+    POINT m_lastCursorPos{ -1, -1 };
     UINT_PTR m_autoHideTimerId = 0;
     std::wstring m_osdMessage;
     UINT_PTR m_osdTimerId = 0;

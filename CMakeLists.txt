@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(RXMediaPlayer
-    VERSION 2.7.0
+    VERSION 2.7.1
     DESCRIPTION "RX Media Player - Native Windows 64-bit Multimedia Player"
     LANGUAGES C CXX
 )

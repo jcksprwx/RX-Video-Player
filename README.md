@@ -1,7 +1,7 @@
 # RX Media Player
 
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(64--bit)-0078D6?style=flat-square&logo=windows)](https://microsoft.com/windows)
-[![Version: 2.7.0](https://img.shields.io/badge/Version-2.7.0-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.7.0)
+[![Version: 2.7.1](https://img.shields.io/badge/Version-2.7.1-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.7.1)
 [![Author: Rituraj](https://img.shields.io/badge/Author-Rituraj-blueviolet?style=flat-square)](https://github.com/jcksprwx)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![C++: 20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=c%2B%2B)](https://en.cppreference.com/w/cpp/20)
@@ -134,9 +134,17 @@ Legacy Windows media players are often cluttered with outdated interfaces, slugg
 - **Cycle Mode Hotkey (`Shift+A`):** Quick toggle hotkey cycling through `Auto -> Stereo (2.0) -> Original Multichannel -> Mono (1.0)` with instant OSD overlay notifications.
 - **Preferences Integration:** Full configuration panel in **Preferences (`F5`) → Audio** with live sliders, sample rate overrides (Source, 44.1 kHz, 48.0 kHz, 96.0 kHz), and INI persistence under `[Audio]`.
 
+### 📺 Responsive Fullscreen Auto-Hide & Auto-Show (v2.7.1)
+- **Universal Physical Mouse Movement Tracking:** Replaced narrow 12-pixel edge zones with responsive screen-wide mouse detection via global `GetCursorPos` polling and Win32 message interception across all child windows. Moving the mouse anywhere across the video immediately reveals both the top title bar and bottom playback controls.
+- **Zero-Latency Cursor & Controls Auto-Show:** Physical mouse displacement or key press instantly restores the arrow cursor (`IDC_ARROW`) and brings back controls without delay or requiring multi-step edge gestures.
+- **2-Second Clean Inactivity Auto-Hide:** When the mouse is stationary over the video area for 2.0 seconds, both bars smoothly hide (`SW_HIDE`) and the cursor auto-hides (`SetCursor(nullptr)`), providing an uninterrupted, distraction-free viewing experience.
+- **Smart Hover & Drag Protection:** Auto-hide is automatically suspended whenever the cursor is hovering over the top bar (`y <= 48`), hovering over the bottom toolbar or timeline (`y >= H - 85`), dragging the seekbar or volume slider, or when any dialog, track menu, or context menu is active.
+- **Tear-Free Direct3D 11 Surface Invalidation:** Upon hiding controls, the underlying video viewport (`m_videoHwnd`) is immediately invalidated and redrawn, eliminating ghost rectangles and frozen UI artifacts.
+- **Safe Fullscreen Transitions:** Entering fullscreen starts with controls visible for 2 seconds before cleanly fading out, giving the user immediate visual orientation. Exiting fullscreen cleanly restores standard desktop window geometry.
+
 ---
 
-## ⌨️ Keyboard Shortcuts & OSD Reference (v2.7.0)
+## ⌨️ Keyboard Shortcuts & OSD Reference (v2.7.1)
 
 Every keyboard shortcut executes instantly and displays real-time On-Screen Display (OSD) feedback directly over the video presentation canvas. Shortcuts are fully configurable in **Preferences (`F5`)** under the Keyboard Shortcuts tab, with searchable reference in **Help → Keyboard Shortcuts (`F1`)**.
 
