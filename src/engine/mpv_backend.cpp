@@ -5,6 +5,7 @@
 #include <iostream>
 #include <sstream>
 #include <cmath>
+#include <algorithm>
 
 namespace rx {
 
@@ -299,12 +300,68 @@ void MpvBackend::applySubtitleStyle(const SubtitleStyle& style) {
     mpv_set_property_string(m_mpv, "sub-font", style.font.c_str());
     mpv_set_property_string(m_mpv, "sub-font-size", std::to_string(style.fontSize).c_str());
     mpv_set_property_string(m_mpv, "sub-color", style.textColor.c_str());
-    mpv_set_property_string(m_mpv, "sub-border-color", style.borderColor.c_str());
-    mpv_set_property_string(m_mpv, "sub-border-size", std::to_string(style.borderSize).c_str());
-    mpv_set_property_string(m_mpv, "sub-shadow-offset", std::to_string(style.shadowOffset).c_str());
+
+    // Outline
+    if (style.outlineEnabled && style.borderSize > 0) {
+        mpv_set_property_string(m_mpv, "sub-border-color", style.borderColor.c_str());
+        mpv_set_property_string(m_mpv, "sub-border-size", std::to_string(style.borderSize).c_str());
+    } else {
+        mpv_set_property_string(m_mpv, "sub-border-size", "0");
+    }
+
+    // Shadow
+    if (style.shadowEnabled && style.shadowOffset > 0) {
+        mpv_set_property_string(m_mpv, "sub-shadow-color", style.shadowColor.c_str());
+        mpv_set_property_string(m_mpv, "sub-shadow-offset", std::to_string(style.shadowOffset).c_str());
+    } else {
+        mpv_set_property_string(m_mpv, "sub-shadow-offset", "0");
+    }
+
+    // Background
+    if (style.backgroundEnabled && style.backgroundOpacity > 0) {
+        int alpha = std::clamp((style.backgroundOpacity * 255) / 100, 0, 255);
+        const char* hex = (style.backgroundColor.length() > 1 && style.backgroundColor[0] == '#')
+                          ? style.backgroundColor.c_str() + 1
+                          : style.backgroundColor.c_str();
+        char bgBuf[32];
+        snprintf(bgBuf, sizeof(bgBuf), "#%02X%s", alpha, hex);
+        mpv_set_property_string(m_mpv, "sub-back-color", bgBuf);
+    } else {
+        mpv_set_property_string(m_mpv, "sub-back-color", "#00000000");
+    }
+
+    // Position & Margins
+    mpv_set_property_string(m_mpv, "sub-pos", std::to_string(style.positionPercent).c_str());
     mpv_set_property_string(m_mpv, "sub-margin-y", std::to_string(style.marginVertical).c_str());
+
+    // Alignment
+    if (style.alignment == "top-center") {
+        mpv_set_property_string(m_mpv, "sub-align-x", "center");
+        mpv_set_property_string(m_mpv, "sub-align-y", "top");
+    } else if (style.alignment == "center") {
+        mpv_set_property_string(m_mpv, "sub-align-x", "center");
+        mpv_set_property_string(m_mpv, "sub-align-y", "center");
+    } else if (style.alignment == "bottom-left") {
+        mpv_set_property_string(m_mpv, "sub-align-x", "left");
+        mpv_set_property_string(m_mpv, "sub-align-y", "bottom");
+    } else if (style.alignment == "bottom-right") {
+        mpv_set_property_string(m_mpv, "sub-align-x", "right");
+        mpv_set_property_string(m_mpv, "sub-align-y", "bottom");
+    } else {
+        mpv_set_property_string(m_mpv, "sub-align-x", "center");
+        mpv_set_property_string(m_mpv, "sub-align-y", "bottom");
+    }
+
+    // Typography & Behavior
     mpv_set_property_string(m_mpv, "sub-bold", style.bold ? "yes" : "no");
     mpv_set_property_string(m_mpv, "sub-italic", style.italic ? "yes" : "no");
+    mpv_set_property_string(m_mpv, "sub-ass-override", style.overrideAss ? "force" : "no");
+    mpv_set_property_string(m_mpv, "sub-auto", style.autoLoadExternal ? "fuzzy" : "no");
+
+    if (!style.preferredLanguages.empty()) {
+        mpv_set_property_string(m_mpv, "slang", style.preferredLanguages.c_str());
+    }
+
     setSubtitleDelay(style.delaySec);
 }
 

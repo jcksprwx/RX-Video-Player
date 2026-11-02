@@ -615,6 +615,97 @@ void testWindowsAssociationsAndOpenSubtitlesV1() {
     std::cout << "  -> testWindowsAssociationsAndOpenSubtitlesV1 PASSED!" << std::endl;
 }
 
+void testAdvancedSubtitleCustomizationAndFullscreen() {
+    std::cout << "[TEST] Running testAdvancedSubtitleCustomizationAndFullscreen..." << std::endl;
+
+    // 1. Validate SubtitleStyle defaults
+    rx::SubtitleStyle style;
+    assert(style.font == "Segoe UI");
+    assert(style.fontSize == 28);
+    assert(style.textColor == "#FFFFFF");
+    assert(style.outlineEnabled == true);
+    assert(style.borderColor == "#000000");
+    assert(style.borderSize == 3);
+    assert(style.shadowEnabled == true);
+    assert(style.shadowColor == "#000000");
+    assert(style.shadowOffset == 1);
+    assert(style.backgroundEnabled == false);
+    assert(style.backgroundColor == "#000000");
+    assert(style.backgroundOpacity == 60);
+    assert(style.positionPercent == 100);
+    assert(style.alignment == "bottom-center");
+    assert(style.bold == true);
+    assert(style.italic == false);
+    assert(style.overrideAss == false);
+    assert(style.autoLoadExternal == true);
+    assert(style.preferredLanguages == "en,hi");
+
+    // 2. Modify and test reset
+    style.fontSize = 36;
+    style.textColor = "#FFFF00";
+    style.backgroundEnabled = true;
+    style.backgroundOpacity = 80;
+    style.alignment = "top-center";
+    style.positionPercent = 10;
+    style.reset();
+    assert(style.fontSize == 28);
+    assert(style.textColor == "#FFFFFF");
+    assert(style.backgroundEnabled == false);
+    assert(style.alignment == "bottom-center");
+
+    // 3. Settings persistence for advanced subtitle fields
+    auto& s = rx::Settings::instance();
+    s.subtitle.style.font = "Verdana";
+    s.subtitle.style.fontSize = 32;
+    s.subtitle.style.textColor = "#00FFFF";
+    s.subtitle.style.outlineEnabled = true;
+    s.subtitle.style.borderColor = "#111111";
+    s.subtitle.style.borderSize = 4;
+    s.subtitle.style.shadowEnabled = true;
+    s.subtitle.style.shadowColor = "#222222";
+    s.subtitle.style.shadowOffset = 2;
+    s.subtitle.style.backgroundEnabled = true;
+    s.subtitle.style.backgroundColor = "#333333";
+    s.subtitle.style.backgroundOpacity = 75;
+    s.subtitle.style.positionPercent = 95;
+    s.subtitle.style.alignment = "bottom-center";
+    s.subtitle.style.bold = false;
+    s.subtitle.style.italic = true;
+    s.subtitle.style.overrideAss = true;
+    s.subtitle.style.autoLoadExternal = true;
+    s.subtitle.style.preferredLanguages = "en,hi,bn,te";
+    s.save();
+
+    // Reset local copy and load from disk
+    s.subtitle.style.reset();
+    s.load();
+
+    assert(s.subtitle.style.font == "Verdana");
+    assert(s.subtitle.style.fontSize == 32);
+    assert(s.subtitle.style.textColor == "#00FFFF");
+    assert(s.subtitle.style.outlineEnabled == true);
+    assert(s.subtitle.style.borderColor == "#111111");
+    assert(s.subtitle.style.borderSize == 4);
+    assert(s.subtitle.style.shadowEnabled == true);
+    assert(s.subtitle.style.shadowColor == "#222222");
+    assert(s.subtitle.style.shadowOffset == 2);
+    assert(s.subtitle.style.backgroundEnabled == true);
+    assert(s.subtitle.style.backgroundColor == "#333333");
+    assert(s.subtitle.style.backgroundOpacity == 75);
+    assert(s.subtitle.style.positionPercent == 95);
+    assert(s.subtitle.style.alignment == "bottom-center");
+    assert(s.subtitle.style.bold == false);
+    assert(s.subtitle.style.italic == true);
+    assert(s.subtitle.style.overrideAss == true);
+    assert(s.subtitle.style.preferredLanguages == "en,hi,bn,te");
+
+    // 4. Shortcut binding check for OpenSubtitleSettings (Ctrl+Shift+S)
+    auto action = rx::ShortcutManager::instance().findAction('S', true, true, false);
+    assert(action == rx::PlayerAction::OpenSubtitleSettings);
+
+    std::cout << "  -> testAdvancedSubtitleCustomizationAndFullscreen PASSED!" << std::endl;
+}
+
 int main() {
     std::cout << "========================================" << std::endl;
     std::cout << "RX Media Player Automated Test Runner" << std::endl;
@@ -631,6 +722,7 @@ int main() {
     testShortcuts();
     testAudioTracksAndOpenSubtitles();
     testWindowsAssociationsAndOpenSubtitlesV1();
+    testAdvancedSubtitleCustomizationAndFullscreen();
 
     std::cout << "========================================" << std::endl;
     std::cout << "ALL TESTS PASSED SUCCESSFULLY!" << std::endl;

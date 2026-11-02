@@ -69,6 +69,8 @@ public:
     void setMuteCallback(MuteCallback cb) { m_muteCb = std::move(cb); }
     HWND getHwnd() const { return m_hwnd; }
     void move(int x, int y, int width, int height);
+    bool isDragging() const { return m_timelineDragging || m_volumeDragging; }
+    bool isHovered() const { return m_timelineHover || m_volumeHover || m_speakerHover; }
 
 private:
     static LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -122,6 +124,7 @@ public:
     void setMaximized(bool maximized);
     void move(int x, int y, int width, int height);
     HWND getHwnd() const { return m_hwnd; }
+    bool isHovered() const { return m_hoverBtn >= 0 || m_pressedBtn >= 0; }
 
     void setMenuCallback(MenuClickCallback cb) { m_menuCb = std::move(cb); }
     void setPinCallback(ActionCallback cb) { m_pinCb = std::move(cb); }

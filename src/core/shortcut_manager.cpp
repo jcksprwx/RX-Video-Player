@@ -252,7 +252,9 @@ void ShortcutManager::initialize() {
     registerAction(PlayerAction::SubtitleDelayUp, "SubtitleDelayUp", L"Subtitle Delay (+100ms)", L"Subtitles",
                    { { VK_RIGHT, false, false, true } }, L"Delay subtitles by 100ms");
     registerAction(PlayerAction::LoadSubtitles, "LoadSubtitles", L"Load External Subtitles", L"Subtitles",
-                   { { 'S', true, true, false } }, L"Load external SRT, ASS, or VTT file");
+                   {}, L"Load external SRT, ASS, or VTT file");
+    registerAction(PlayerAction::OpenSubtitleSettings, "OpenSubtitleSettings", L"Subtitle Settings & Customization", L"Subtitles",
+                   { { 'S', true, true, false } }, L"Open subtitle appearance, font, color, and synchronization settings");
     registerAction(PlayerAction::OpenSubtitleMenu, "OpenSubtitleMenu", L"Open Subtitle Stream Menu", L"Subtitles",
                    { { 'L', true, true, false } }, L"Open popup subtitle track selection menu");
     registerAction(PlayerAction::DownloadOnlineSubtitles, "DownloadOnlineSubtitles", L"Download Subtitles Online", L"Subtitles",

@@ -17,6 +17,7 @@ public:
 
     bool show(HWND parentHwnd);
     void close();
+    bool isVisible() const { return (m_hwnd != nullptr && IsWindow(m_hwnd)); }
 
 private:
     static LRESULT CALLBACK dlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -56,6 +57,8 @@ private:
     HWND m_chkHwdec = nullptr;
     HWND m_chkWASAPIExclusive = nullptr;
     HWND m_chkAutoLoadSubs = nullptr;
+    HWND m_btnOpenSubSettings = nullptr;
+    HWND m_lblSubSummary = nullptr;
 
     // File associations controls (Category 0: General)
     HWND m_btnRegisterAssoc = nullptr;

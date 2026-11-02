@@ -117,16 +117,26 @@ void Settings::load(const std::string& path) {
             else if (key == "repeatMode") playback.repeatMode = std::stoi(val);
             else if (key == "shuffle") playback.shuffle = (val == "1" || val == "true");
         } else if (section == "Subtitle") {
-            if (key == "autoLoad") subtitle.autoLoad = (val == "1" || val == "true");
+            if (key == "autoLoad") { subtitle.autoLoad = (val == "1" || val == "true"); subtitle.style.autoLoadExternal = subtitle.autoLoad; }
             else if (key == "fontSize") { subtitle.fontSize = std::stoi(val); subtitle.style.fontSize = std::stoi(val); }
             else if (key == "fontName") { subtitle.fontName = val; subtitle.style.font = val; }
             else if (key == "primaryColor") { subtitle.primaryColor = val; subtitle.style.textColor = val; }
+            else if (key == "outlineEnabled") subtitle.style.outlineEnabled = (val == "1" || val == "true");
             else if (key == "outlineColor") { subtitle.outlineColor = val; subtitle.style.borderColor = val; }
             else if (key == "borderSize") subtitle.style.borderSize = std::stoi(val);
+            else if (key == "shadowEnabled") subtitle.style.shadowEnabled = (val == "1" || val == "true");
+            else if (key == "shadowColor") subtitle.style.shadowColor = val;
             else if (key == "shadowOffset") subtitle.style.shadowOffset = std::stoi(val);
+            else if (key == "backgroundEnabled") subtitle.style.backgroundEnabled = (val == "1" || val == "true");
+            else if (key == "backgroundColor") subtitle.style.backgroundColor = val;
+            else if (key == "backgroundOpacity") subtitle.style.backgroundOpacity = std::stoi(val);
+            else if (key == "positionPercent") subtitle.style.positionPercent = std::stoi(val);
+            else if (key == "alignment") subtitle.style.alignment = val;
             else if (key == "marginVertical") subtitle.style.marginVertical = std::stoi(val);
             else if (key == "bold") subtitle.style.bold = (val == "1" || val == "true");
             else if (key == "italic") subtitle.style.italic = (val == "1" || val == "true");
+            else if (key == "overrideAss") subtitle.style.overrideAss = (val == "1" || val == "true");
+            else if (key == "preferredLanguages") subtitle.style.preferredLanguages = val;
             else if (key == "delayMs") { subtitle.delayMs = std::stod(val); subtitle.style.delaySec = std::stod(val) / 1000.0; }
         } else if (section == "OpenSubtitles") {
             if (key == "apiKey") opensubtitles.apiKey = val;
@@ -214,16 +224,26 @@ void Settings::save(const std::string& path) {
     file << "shuffle=" << (playback.shuffle ? "1" : "0") << "\n\n";
 
     file << "[Subtitle]\n";
-    file << "autoLoad=" << (subtitle.autoLoad ? "1" : "0") << "\n";
+    file << "autoLoad=" << (subtitle.style.autoLoadExternal ? "1" : "0") << "\n";
     file << "fontSize=" << subtitle.style.fontSize << "\n";
     file << "fontName=" << subtitle.style.font << "\n";
     file << "primaryColor=" << subtitle.style.textColor << "\n";
+    file << "outlineEnabled=" << (subtitle.style.outlineEnabled ? "1" : "0") << "\n";
     file << "outlineColor=" << subtitle.style.borderColor << "\n";
     file << "borderSize=" << subtitle.style.borderSize << "\n";
+    file << "shadowEnabled=" << (subtitle.style.shadowEnabled ? "1" : "0") << "\n";
+    file << "shadowColor=" << subtitle.style.shadowColor << "\n";
     file << "shadowOffset=" << subtitle.style.shadowOffset << "\n";
+    file << "backgroundEnabled=" << (subtitle.style.backgroundEnabled ? "1" : "0") << "\n";
+    file << "backgroundColor=" << subtitle.style.backgroundColor << "\n";
+    file << "backgroundOpacity=" << subtitle.style.backgroundOpacity << "\n";
+    file << "positionPercent=" << subtitle.style.positionPercent << "\n";
+    file << "alignment=" << subtitle.style.alignment << "\n";
     file << "marginVertical=" << subtitle.style.marginVertical << "\n";
     file << "bold=" << (subtitle.style.bold ? "1" : "0") << "\n";
     file << "italic=" << (subtitle.style.italic ? "1" : "0") << "\n";
+    file << "overrideAss=" << (subtitle.style.overrideAss ? "1" : "0") << "\n";
+    file << "preferredLanguages=" << subtitle.style.preferredLanguages << "\n";
     file << "delayMs=" << (subtitle.style.delaySec * 1000.0) << "\n\n";
 
     file << "[OpenSubtitles]\n";

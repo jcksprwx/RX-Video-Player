@@ -38,6 +38,7 @@ constexpr UINT IDC_PREF_OS_TEST        = 4024;
 constexpr UINT IDC_PREF_OS_LOGIN       = 4025;
 constexpr UINT IDC_PREF_OS_LOGOUT      = 4026;
 constexpr UINT IDC_PREF_OS_LANGS       = 4027;
+constexpr UINT IDC_PREF_OPEN_SUB_SETTINGS = 4030;
 constexpr UINT IDC_PREF_OS_AUTOSEARCH  = 4028;
 constexpr UINT IDC_PREF_OS_AUTOAPPLY   = 4029;
 
@@ -229,6 +230,21 @@ void RXPreferencesDialog::onInitDialog() {
     );
     SendMessageW(m_chkAutoLoadSubs, WM_SETFONT, (WPARAM)m_font, TRUE);
     SendMessageW(m_chkAutoLoadSubs, BM_SETCHECK, s.subtitle.autoLoad ? BST_CHECKED : BST_UNCHECKED, 0);
+
+    m_btnOpenSubSettings = CreateWindowExW(
+        0, L"BUTTON", L"Open Subtitle Customization Panel...",
+        WS_CHILD | BS_PUSHBUTTON,
+        205, 95, 290, 30, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_OPEN_SUB_SETTINGS, hInst, nullptr
+    );
+    SendMessageW(m_btnOpenSubSettings, WM_SETFONT, (WPARAM)m_boldFont, TRUE);
+
+    m_lblSubSummary = CreateWindowExW(
+        0, L"STATIC",
+        L"Configure font family, outline thickness, drop shadow, background box, opacity,\r\n"
+        L"vertical position, screen alignment, and timing synchronization in the dedicated panel.",
+        WS_CHILD, 205, 135, 520, 40, m_hwnd, nullptr, hInst, nullptr
+    );
+    SendMessageW(m_lblSubSummary, WM_SETFONT, (WPARAM)m_font, TRUE);
 
     // 3. Category 0: General & Windows Associations Controls
     bool isAssocReg = AssociationManager::isRegistered(true);
@@ -432,6 +448,8 @@ void RXPreferencesDialog::updateCategoryPanels(int categoryIndex) {
 
     // Subtitles (4)
     ShowWindow(m_chkAutoLoadSubs, showSub ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_btnOpenSubSettings, showSub ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_lblSubSummary, showSub ? SW_SHOW : SW_HIDE);
 
     // OpenSubtitles API (5)
     ShowWindow(m_lblOsApiKey, showOpenSub ? SW_SHOW : SW_HIDE);
@@ -776,6 +794,10 @@ LRESULT CALLBACK RXPreferencesDialog::dlgProc(HWND hwnd, UINT msg, WPARAM wParam
                     pThis->onOpenSubtitlesLogin();
                 } else if (id == IDC_PREF_OS_LOGOUT) {
                     pThis->onOpenSubtitlesLogout();
+                } else if (id == IDC_PREF_OPEN_SUB_SETTINGS) {
+                    if (pThis->m_parent) {
+                        PostMessageW(pThis->m_parent, WM_COMMAND, MAKEWPARAM(9060, 0), 0);
+                    }
                 } else if (id == IDC_PREF_SC_SEARCH && code == EN_CHANGE) {
                     pThis->onShortcutSearch();
                 } else if (id == IDC_PREF_SC_ASSIGN) {

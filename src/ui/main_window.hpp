@@ -84,6 +84,11 @@ private:
     void layoutControls();
     void startAutoHideTimer();
     void resetAutoHide();
+    void updateFullscreenControlsLayout();
+    void setFullscreenTopBarVisible(bool visible);
+    void setFullscreenBottomBarVisible(bool visible);
+    void checkAutoHideInactivity();
+    void onMouseMoveFullscreen(int clientX, int clientY);
 
     HWND m_mainHwnd = nullptr;
     HWND m_videoHwnd = nullptr;
@@ -133,6 +138,10 @@ private:
     bool m_alwaysOnTop = false;
     WINDOWPLACEMENT m_prevPlacement{};
     bool m_controlsHidden = false;
+    bool m_topBarVisible = true;
+    bool m_bottomBarVisible = true;
+    bool m_cursorHidden = false;
+    DWORD m_lastMouseMoveTime = 0;
     UINT_PTR m_autoHideTimerId = 0;
     std::wstring m_osdMessage;
     UINT_PTR m_osdTimerId = 0;

@@ -29,6 +29,7 @@ public:
                        const std::vector<TrackMenuItem>& items);
 
     void close();
+    bool isOpen() const { return m_isOpen; }
 
 private:
     static LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);

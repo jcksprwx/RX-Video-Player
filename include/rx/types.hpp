@@ -7,7 +7,7 @@
 
 namespace rx {
 
-inline constexpr const char* kAppVersion = "2.5.0";
+inline constexpr const char* kAppVersion = "2.6.0";
 inline constexpr const char* kAppAuthor  = "Rituraj";
 inline constexpr const char* kAppName    = "RX Media Player";
 
@@ -116,25 +116,47 @@ struct SubtitleStyle {
     std::string font = "Segoe UI";
     int fontSize = 28;                   // 14 to 60 pt
     std::string textColor = "#FFFFFF";    // Hex RGB
+    bool outlineEnabled = true;
     std::string borderColor = "#000000";  // Hex RGB
     int borderSize = 3;                  // 0 to 8 px
+    bool shadowEnabled = true;
+    std::string shadowColor = "#000000";  // Hex RGB
     int shadowOffset = 1;                // 0 to 6 px
+    bool backgroundEnabled = false;
+    std::string backgroundColor = "#000000"; // Hex RGB
+    int backgroundOpacity = 60;          // 0 to 100 %
     int marginVertical = 36;             // 10 to 120 px
+    int positionPercent = 100;           // 0 to 100 (mpv sub-pos)
+    std::string alignment = "bottom-center"; // bottom-center, top-center, center, bottom-left, bottom-right
     bool bold = true;
     bool italic = false;
     double delaySec = 0.0;               // -10.0 to +10.0 s
+    bool overrideAss = false;            // override embedded ASS/SSA styles
+    bool autoLoadExternal = true;        // auto-load matching external subtitles
+    std::string preferredLanguages = "en,hi"; // preferred languages
 
     void reset() {
         font = "Segoe UI";
         fontSize = 28;
         textColor = "#FFFFFF";
+        outlineEnabled = true;
         borderColor = "#000000";
         borderSize = 3;
+        shadowEnabled = true;
+        shadowColor = "#000000";
         shadowOffset = 1;
+        backgroundEnabled = false;
+        backgroundColor = "#000000";
+        backgroundOpacity = 60;
         marginVertical = 36;
+        positionPercent = 100;
+        alignment = "bottom-center";
         bold = true;
         italic = false;
         delaySec = 0.0;
+        overrideAss = false;
+        autoLoadExternal = true;
+        preferredLanguages = "en,hi";
     }
 };
 

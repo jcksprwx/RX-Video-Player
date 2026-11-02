@@ -1,7 +1,7 @@
 # RX Media Player
 
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(64--bit)-0078D6?style=flat-square&logo=windows)](https://microsoft.com/windows)
-[![Version: 2.5.0](https://img.shields.io/badge/Version-2.5.0-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.5.0)
+[![Version: 2.6.0](https://img.shields.io/badge/Version-2.6.0-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.6.0)
 [![Author: Rituraj](https://img.shields.io/badge/Author-Rituraj-blueviolet?style=flat-square)](https://github.com/jcksprwx)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![C++: 20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=c%2B%2B)](https://en.cppreference.com/w/cpp/20)
@@ -100,6 +100,26 @@ Legacy Windows media players are often cluttered with outdated interfaces, slugg
 - **In-App Registration & Repair:** Dedicated "Register in Windows 'Open with' Menu" and "Repair File Associations" actions inside **Preferences (`F5`) → General**, alongside CLI self-healing flags (`--register`, `/register`, `--repair`, `/repair`).
 - **Single-Instance IPC Forwarding:** When opening files via Windows Explorer while RX Media Player is already running, the new process forwards the file paths via `WM_COPYDATA` (magic ID `0x5258504C`) to the existing window, automatically appending multi-selected files into the active playlist and restoring focus without spawning duplicate processes.
 
+### 📺 True Fullscreen Experience & Auto-Hiding Overlays (v2.6.0)
+- **True Borderless Fullscreen:** Switched to borderless popup window (`WS_POPUP | WS_VISIBLE | WS_CLIPCHILDREN`) spanning monitor bounds (`rcMonitor`) to cover the Windows taskbar and system tray completely.
+- **Tear-Free Overlay Presentation:** Video rendering canvas remains full-screen (`0, 0, width, height`) behind controls; top title bar and bottom toolbar overlay on top without resizing the video canvas, avoiding Direct3D 11 swapchain recreation and playback stutter.
+- **Intelligent Edge Reveal Zones:** Moving the mouse into the top reveal zone (`y <= 12px`) reveals the custom title bar; moving into the bottom reveal zone (`y >= H - 12px`) reveals the bottom playback toolbar.
+- **Inactivity Auto-Hide & Mouse Hiding:** Controls automatically hide after ~2 seconds of inactivity over the video area. The mouse pointer is seamlessly hidden during video playback and reappears instantly upon any movement.
+- **Smart Interaction Rules:** Prevents toolbar hiding while scrubbing the seekbar or volume slider, hovering over buttons or sliders, or when dialogs or context menus are open.
+- **Universal Input Routing:** Keyboard shortcuts (e.g., `Space`, `Left/Right`, `M`, `Escape`, `Ctrl+Shift+S`) are intercepted and dispatched from all child windows regardless of input focus.
+
+### 🎨 Advanced Subtitle Customization Panel (v2.6.0)
+- **Dedicated Subtitle Settings Dialog (`Ctrl+Shift+S`):** Inspired by professional desktop media players, accessible via context menu, track popup menu, or Preferences dialog.
+- **Real-Time Live Subtitle Preview:** Interactive preview pane simulating a video screen, updating in real time as styles, fonts, and colors are modified.
+- **5 Organized Configuration Tabs:**
+  - **Font & Text:** Track selection, "Load External Subtitle File...", system font enumeration (`EnumFontFamiliesExW`), font size slider (14–60 pt), bold, and italic options.
+  - **Colors & Outline:** Text color picker (`ChooseColorW`) with HEX input and live color swatch, outline thickness slider (0–8 px), outline color picker, drop shadow toggle, shadow color, and shadow offset slider (0–6 px).
+  - **Background & Layout:** Background box toggle, background color picker, opacity slider (0–100%), and vertical bottom margin slider (10–120 px).
+  - **Position & Alignment:** Vertical positioning slider (0–100%), alignment presets (Bottom Center, Top Center, Center, Bottom Left, Bottom Right), and margin fine-tuning.
+  - **Sync & Advanced:** Millisecond subtitle delay display with quick-step buttons (`-250ms`, `-100ms`, `+100ms`, `+250ms`, `Reset`), delay slider (-5000ms to +5000ms), auto-load external subtitles toggle, ASS/SSA style override option, and preferred language priority string.
+- **Action Buttons:** Apply (applies changes immediately with OSD notification), OK (applies, saves to INI, closes), Cancel (reverts to original style), Reset Tab, and Reset All.
+- **Direct Playback Engine Synchronization:** All subtitle parameters map directly to `libmpv` runtime properties (`sub-font`, `sub-font-size`, `sub-color`, `sub-border-color`, `sub-border-size`, `sub-shadow-color`, `sub-shadow-offset`, `sub-back-color`, `sub-pos`, `sub-margin-y`, `sub-align-x`, `sub-align-y`, `sub-bold`, `sub-italic`, `sub-ass-override`, `sub-auto`, `slang`, `sub-delay`).
+
 ---
 
 ## ⌨️ Keyboard Shortcuts & OSD Reference (v2.4.1)
@@ -133,7 +153,7 @@ Every keyboard shortcut executes instantly and displays real-time On-Screen Disp
 | | **Ctrl + Shift + L** | Open Subtitle Track Menu | Visual Dark Popup Menu |
 | | **Ctrl + D** | Download Subtitles Online | OpenSubtitles Dialog |
 | | **Alt + Left / Right** | Nudge Subtitle Delay (±100ms) | `Subtitle Delay: -100 ms` |
-| | **Ctrl + Shift + S** | Load External Subtitles | `Subtitle Loaded: <Name>` |
+| | **Ctrl + Shift + S** | Open Subtitle Settings Panel | Subtitle Customization Dialog |
 | **Playlist** | **Page Up / Page Down** | Previous / Next File | `Previous: <Name>` / `Next: <Name>` |
 | | **Ctrl + N** | Open Next Playlist Item | `Next: <Name>` |
 | | **Ctrl + P / F6** | Toggle Playlist Panel | `Playlist Opened` / `Playlist Closed` |
