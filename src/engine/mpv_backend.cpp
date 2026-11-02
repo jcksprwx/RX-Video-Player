@@ -238,6 +238,152 @@ void MpvBackend::setAudioChannelMode(AudioChannelMode mode) {
     }
 }
 
+void MpvBackend::applyStereoDownmixConfig(const StereoDownmixConfig& config) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_downmixConfig = config;
+    if (!m_mpv) return;
+
+    // 1. Channel layout
+    switch (config.outputMode) {
+        case AudioOutputMode::Auto:
+            mpv_set_property_string(m_mpv, "audio-channels", "auto-safe");
+            break;
+        case AudioOutputMode::Stereo:
+            mpv_set_property_string(m_mpv, "audio-channels", "stereo");
+            break;
+        case AudioOutputMode::Mono:
+            mpv_set_property_string(m_mpv, "audio-channels", "mono");
+            break;
+        case AudioOutputMode::Original:
+            mpv_set_property_string(m_mpv, "audio-channels", "auto");
+            break;
+    }
+
+    // 2. Resample normalization (clipping protection)
+    mpv_set_property_string(m_mpv, "audio-resample-normalize-downmix", config.normalizeDownmix ? "yes" : "no");
+
+    // 3. Sample rate override
+    if (config.outputSampleRate > 0) {
+        mpv_set_property_string(m_mpv, "audio-resample-sample-rate", std::to_string(config.outputSampleRate).c_str());
+    } else {
+        mpv_set_property_string(m_mpv, "audio-resample-sample-rate", "0");
+    }
+
+    // 4. Custom downmixing matrix filter (@rx_downmix)
+    bool needsCustomMatrix = (config.outputMode == AudioOutputMode::Stereo) &&
+                             (m_mediaInfo.audioChannels >= 6) &&
+                             (std::abs(config.centerMixLevel - 0.707) > 0.05 ||
+                              std::abs(config.surroundMixLevel - 0.707) > 0.05 ||
+                              config.includeLfe);
+
+    if (needsCustomMatrix) {
+        double clev = config.centerMixLevel;
+        double slev = config.surroundMixLevel;
+        double lfe = config.includeLfe ? config.lfeMixLevel : 0.0;
+
+        double norm = 1.0;
+        if (config.normalizeDownmix) {
+            double total = 1.0 + clev + slev + lfe;
+            if (total > 0.01) norm = 1.0 / total;
+        }
+
+        double wL = 1.0 * norm;
+        double wC = clev * norm;
+        double wS = slev * norm;
+        double wLfe = lfe * norm;
+
+        std::ostringstream ss;
+        ss << std::fixed << std::setprecision(3);
+        if (m_mediaInfo.audioChannels >= 8) {
+            // 7.1 layout
+            double wSurr = wS * 0.707;
+            ss << "af add @rx_downmix:lavfi=[pan=stereo|"
+               << "c0=" << wL << "*c0+" << wC << "*c2+" << wSurr << "*c4+" << wSurr << "*c6";
+            if (config.includeLfe) ss << "+" << wLfe << "*c3";
+            ss << "|c1=" << wL << "*c1+" << wC << "*c2+" << wSurr << "*c5+" << wSurr << "*c7";
+            if (config.includeLfe) ss << "+" << wLfe << "*c3";
+            ss << "]";
+        } else {
+            // 5.1 layout
+            ss << "af add @rx_downmix:lavfi=[pan=stereo|"
+               << "c0=" << wL << "*c0+" << wC << "*c2+" << wS << "*c4";
+            if (config.includeLfe) ss << "+" << wLfe << "*c3";
+            ss << "|c1=" << wL << "*c1+" << wC << "*c2+" << wS << "*c5";
+            if (config.includeLfe) ss << "+" << wLfe << "*c3";
+            ss << "]";
+        }
+        mpv_command_string(m_mpv, ss.str().c_str());
+    } else {
+        mpv_command_string(m_mpv, "af del @rx_downmix");
+    }
+
+    updateMediaInfo();
+}
+
+void MpvBackend::setAudioOutputMode(AudioOutputMode mode) {
+    m_downmixConfig.outputMode = mode;
+    applyStereoDownmixConfig(m_downmixConfig);
+}
+
+std::string MpvBackend::cycleAudioOutputMode() {
+    AudioOutputMode nextMode;
+    switch (m_downmixConfig.outputMode) {
+        case AudioOutputMode::Auto:
+            nextMode = AudioOutputMode::Stereo;
+            break;
+        case AudioOutputMode::Stereo:
+            nextMode = AudioOutputMode::Original;
+            break;
+        case AudioOutputMode::Original:
+            nextMode = AudioOutputMode::Mono;
+            break;
+        case AudioOutputMode::Mono:
+        default:
+            nextMode = AudioOutputMode::Auto;
+            break;
+    }
+    setAudioOutputMode(nextMode);
+
+    switch (nextMode) {
+        case AudioOutputMode::Stereo:   return "Audio Output: Stereo (2.0)";
+        case AudioOutputMode::Mono:     return "Audio Output: Mono (1.0)";
+        case AudioOutputMode::Original: return "Audio Output: Original Multichannel";
+        case AudioOutputMode::Auto:
+        default:                        return "Audio Output: Auto";
+    }
+}
+
+int MpvBackend::getOutputAudioChannels() const {
+    if (!m_mpv) return 0;
+    int64_t ch = 0;
+    if (mpv_get_property(m_mpv, "audio-out-params/channel-count", MPV_FORMAT_INT64, &ch) >= 0) {
+        return static_cast<int>(ch);
+    }
+    if (m_downmixConfig.outputMode == AudioOutputMode::Stereo) return 2;
+    if (m_downmixConfig.outputMode == AudioOutputMode::Mono) return 1;
+    return m_mediaInfo.audioChannels;
+}
+
+std::string MpvBackend::getOutputAudioFormat() const {
+    if (!m_mpv) return "PCM";
+    char* fmt = mpv_get_property_string(m_mpv, "audio-out-params/format");
+    if (fmt) {
+        std::string res = fmt;
+        mpv_free(fmt);
+        return res;
+    }
+    return "PCM";
+}
+
+int MpvBackend::getOutputSampleRate() const {
+    if (!m_mpv) return 0;
+    int64_t sr = 0;
+    if (mpv_get_property(m_mpv, "audio-out-params/samplerate", MPV_FORMAT_INT64, &sr) >= 0) {
+        return static_cast<int>(sr);
+    }
+    return m_mediaInfo.audioSampleRate;
+}
+
 void MpvBackend::setAudioDevice(const std::string& deviceId) {
     if (!m_mpv) return;
     std::string dev = deviceId.empty() ? "auto" : deviceId;
@@ -786,6 +932,27 @@ void MpvBackend::updateMediaInfo() {
     int64_t ch = 0;
     if (mpv_get_property(m_mpv, "audio-params/channel-count", MPV_FORMAT_INT64, &ch) >= 0) {
         m_mediaInfo.audioChannels = static_cast<int>(ch);
+    }
+    int64_t sr = 0;
+    if (mpv_get_property(m_mpv, "audio-params/samplerate", MPV_FORMAT_INT64, &sr) >= 0) {
+        m_mediaInfo.audioSampleRate = static_cast<int>(sr);
+    }
+
+    int64_t outCh = 0;
+    if (mpv_get_property(m_mpv, "audio-out-params/channel-count", MPV_FORMAT_INT64, &outCh) >= 0) {
+        m_mediaInfo.outAudioChannels = static_cast<int>(outCh);
+        m_outAudioChannels = static_cast<int>(outCh);
+    }
+    char* outFmt = mpv_get_property_string(m_mpv, "audio-out-params/format");
+    if (outFmt) {
+        m_mediaInfo.outAudioFormat = outFmt;
+        m_outAudioFormat = outFmt;
+        mpv_free(outFmt);
+    }
+    int64_t outSr = 0;
+    if (mpv_get_property(m_mpv, "audio-out-params/samplerate", MPV_FORMAT_INT64, &outSr) >= 0) {
+        m_mediaInfo.outAudioSampleRate = static_cast<int>(outSr);
+        m_outAudioSampleRate = static_cast<int>(outSr);
     }
 
     char* hwdec = mpv_get_property_string(m_mpv, "hwdec-current");

@@ -2,7 +2,7 @@
 ; High-performance Windows multimedia application
 
 #define MyAppName "RX Media Player"
-#define MyAppVersion "2.6.0"
+#define MyAppVersion "2.7.0"
 #define MyAppPublisher "RX Media Player"
 #define MyAppURL "https://github.com/jcksprwx/RX-Video-Player"
 #define MyAppExeName "rx_player.exe"
@@ -19,7 +19,7 @@ DefaultDirName={autopf64}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=..\dist_installer
-OutputBaseFilename=RX_Media_Player_Setup_2.6.0
+OutputBaseFilename=RX_Media_Player_Setup_2.7.0
 Compression=lzma2/ultra64
 SolidCompression=yes
 SetupIconFile=..\assets\icons\app_icon.ico

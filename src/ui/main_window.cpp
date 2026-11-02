@@ -71,6 +71,10 @@ constexpr UINT IDM_AUDIO_EQUALIZER   = 9040;
 constexpr UINT IDM_MUTE              = 9041;
 constexpr UINT IDM_VOL_UP            = 9042;
 constexpr UINT IDM_VOL_DOWN          = 9043;
+constexpr UINT IDM_AUDIO_OUT_AUTO     = 9044;
+constexpr UINT IDM_AUDIO_OUT_STEREO   = 9045;
+constexpr UINT IDM_AUDIO_OUT_MONO     = 9046;
+constexpr UINT IDM_AUDIO_OUT_ORIGINAL = 9047;
 constexpr UINT IDM_VIDEO_ADJUST      = 9050;
 constexpr UINT IDM_ASPECT_AUTO       = 9051;
 constexpr UINT IDM_ASPECT_16_9       = 9052;
@@ -324,6 +328,7 @@ bool RXMainWindow::create(HINSTANCE hInstance, int nCmdShow) {
     m_engine.setAudioExclusive(settings.audio.exclusiveMode);
     m_engine.setAudioDelay(settings.audio.delayMs / 1000.0);
     m_engine.setAudioFilter(audio::Equalizer::buildFilterString(settings.audio.equalizer));
+    m_engine.applyStereoDownmixConfig(settings.audio.downmix);
 
     m_timelineStrip.setVolume(settings.audio.volume, settings.audio.muted);
 
@@ -394,6 +399,8 @@ bool RXMainWindow::create(HINSTANCE hInstance, int nCmdShow) {
                 showOsdMessage(L"Resumed at: " + rx::utils::utf8ToWide(rx::utils::formatTime(lastPos)));
             }
         }
+
+        m_engine.applyStereoDownmixConfig(m_engine.getStereoDownmixConfig());
 
         if (m_bmDialog) m_bmDialog->refreshList();
         if (m_controlBarHwnd) InvalidateRect(m_controlBarHwnd, nullptr, FALSE);
@@ -797,13 +804,24 @@ void RXMainWindow::onPaintControlBar(HDC hdc) {
         }
     }
 
-    // 4. [ 2.0 ] Channels Badge
-    if (info.audioChannels > 0) {
-        std::wstring chStr = (info.audioChannels == 6) ? L"5.1" :
-                             (info.audioChannels == 8) ? L"7.1" :
-                             (info.audioChannels == 2) ? L"2.0" :
-                             (info.audioChannels == 1) ? L"1.0" :
-                             (std::to_wstring(info.audioChannels) + L"ch");
+    // 4. [ 2.0 ] or [ 5.1 -> 2.0 ] Channels Badge
+    int inCh = info.audioChannels;
+    int outCh = m_engine.getOutputAudioChannels();
+    if (inCh > 0) {
+        auto formatCh = [](int ch) -> std::wstring {
+            if (ch == 6) return L"5.1";
+            if (ch == 8) return L"7.1";
+            if (ch == 2) return L"2.0";
+            if (ch == 1) return L"1.0";
+            return std::to_wstring(ch) + L"ch";
+        };
+
+        std::wstring chStr;
+        if (outCh > 0 && outCh != inCh) {
+            chStr = formatCh(inCh) + L" \x2192 " + formatCh(outCh); // Right arrow
+        } else {
+            chStr = formatCh(inCh);
+        }
 
         RECT rcCh = drawBadge(curX, chStr, false);
         if (rcCh.right > rcCh.left) {
@@ -1118,6 +1136,48 @@ void RXMainWindow::showAudioTrackMenu(int screenX, int screenY) {
     mRight.isSelected = (curMode == AudioChannelMode::Right);
     items.push_back(mRight);
 
+    // Audio Output Mode Section
+    rx::ui::TrackMenuItem sepOut;
+    sepOut.isSeparator = true;
+    items.push_back(sepOut);
+
+    rx::ui::TrackMenuItem hdrOut;
+    hdrOut.id = 1040;
+    hdrOut.text = L"Audio Output Mode";
+    hdrOut.shortcut = L"Shift+A";
+    hdrOut.isHeader = true;
+    items.push_back(hdrOut);
+
+    AudioOutputMode curOutMode = m_engine.getAudioOutputMode();
+
+    rx::ui::TrackMenuItem mOutAuto;
+    mOutAuto.id = 1041;
+    mOutAuto.text = L"Auto (Follow Source / Device)";
+    mOutAuto.isRadio = true;
+    mOutAuto.isSelected = (curOutMode == AudioOutputMode::Auto);
+    items.push_back(mOutAuto);
+
+    rx::ui::TrackMenuItem mOutStereo;
+    mOutStereo.id = 1042;
+    mOutStereo.text = L"Stereo (2.0)";
+    mOutStereo.isRadio = true;
+    mOutStereo.isSelected = (curOutMode == AudioOutputMode::Stereo);
+    items.push_back(mOutStereo);
+
+    rx::ui::TrackMenuItem mOutMono;
+    mOutMono.id = 1043;
+    mOutMono.text = L"Mono (1.0)";
+    mOutMono.isRadio = true;
+    mOutMono.isSelected = (curOutMode == AudioOutputMode::Mono);
+    items.push_back(mOutMono);
+
+    rx::ui::TrackMenuItem mOutOriginal;
+    mOutOriginal.id = 1044;
+    mOutOriginal.text = L"Original Multichannel Output";
+    mOutOriginal.isRadio = true;
+    mOutOriginal.isSelected = (curOutMode == AudioOutputMode::Original);
+    items.push_back(mOutOriginal);
+
     // Separator
     rx::ui::TrackMenuItem sep2;
     sep2.isSeparator = true;
@@ -1150,6 +1210,24 @@ void RXMainWindow::showAudioTrackMenu(int screenX, int screenY) {
     } else if (choice == 1012) {
         m_engine.setAudioChannelMode(AudioChannelMode::Right);
         showOsdMessage(L"Audio Mode: Right Channel");
+    } else if (choice == 1040) {
+        executeAction(PlayerAction::CycleAudioOutputMode);
+    } else if (choice == 1041) {
+        m_engine.setAudioOutputMode(AudioOutputMode::Auto);
+        showOsdMessage(L"Audio Output: Auto");
+        if (m_controlBarHwnd) InvalidateRect(m_controlBarHwnd, nullptr, FALSE);
+    } else if (choice == 1042) {
+        m_engine.setAudioOutputMode(AudioOutputMode::Stereo);
+        showOsdMessage(L"Audio Output: Stereo (2.0)");
+        if (m_controlBarHwnd) InvalidateRect(m_controlBarHwnd, nullptr, FALSE);
+    } else if (choice == 1043) {
+        m_engine.setAudioOutputMode(AudioOutputMode::Mono);
+        showOsdMessage(L"Audio Output: Mono (1.0)");
+        if (m_controlBarHwnd) InvalidateRect(m_controlBarHwnd, nullptr, FALSE);
+    } else if (choice == 1044) {
+        m_engine.setAudioOutputMode(AudioOutputMode::Original);
+        showOsdMessage(L"Audio Output: Original Multichannel");
+        if (m_controlBarHwnd) InvalidateRect(m_controlBarHwnd, nullptr, FALSE);
     } else if (choice == 1020) {
         toggleAudioPanel();
     }
@@ -1439,6 +1517,14 @@ void RXMainWindow::showContextMenu(int screenX, int screenY) {
     AppendMenuW(hSubChannelMode, MF_STRING | (curMode == AudioChannelMode::Left ? MF_CHECKED : 0), IDM_AUDIO_CHAN_LEFT, L"Left channel");
     AppendMenuW(hSubChannelMode, MF_STRING | (curMode == AudioChannelMode::Right ? MF_CHECKED : 0), IDM_AUDIO_CHAN_RIGHT, L"Right channel");
     AppendMenuW(hSubAudio, MF_POPUP, (UINT_PTR)hSubChannelMode, L"Audio Channel");
+
+    HMENU hSubAudioOutput = CreatePopupMenu();
+    AudioOutputMode curOutMode = m_engine.getAudioOutputMode();
+    AppendMenuW(hSubAudioOutput, MF_STRING | (curOutMode == AudioOutputMode::Auto ? MF_CHECKED : 0), IDM_AUDIO_OUT_AUTO, L"Auto (Follow Source / Device)");
+    AppendMenuW(hSubAudioOutput, MF_STRING | (curOutMode == AudioOutputMode::Stereo ? MF_CHECKED : 0), IDM_AUDIO_OUT_STEREO, L"Stereo (2.0)");
+    AppendMenuW(hSubAudioOutput, MF_STRING | (curOutMode == AudioOutputMode::Mono ? MF_CHECKED : 0), IDM_AUDIO_OUT_MONO, L"Mono (1.0)");
+    AppendMenuW(hSubAudioOutput, MF_STRING | (curOutMode == AudioOutputMode::Original ? MF_CHECKED : 0), IDM_AUDIO_OUT_ORIGINAL, L"Original Multichannel Output");
+    AppendMenuW(hSubAudio, MF_POPUP, (UINT_PTR)hSubAudioOutput, L"Audio Output Mode");
 
     AppendMenuW(hSubAudio, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(hSubAudio, MF_STRING, IDM_AUDIO_EQUALIZER, L"10-Band Equalizer & WASAPI...\tA");
@@ -1990,6 +2076,12 @@ void RXMainWindow::executeAction(PlayerAction action) {
             }
             break;
         }
+        case PlayerAction::CycleAudioOutputMode: {
+            std::string osd = m_engine.cycleAudioOutputMode();
+            showOsdMessage(rx::utils::utf8ToWide(osd));
+            if (m_controlBarHwnd) InvalidateRect(m_controlBarHwnd, nullptr, FALSE);
+            break;
+        }
         case PlayerAction::OpenAudioMenu: {
             showAudioTrackMenu(0, 0);
             break;
@@ -2408,6 +2500,26 @@ LRESULT CALLBACK RXMainWindow::mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, L
                         pThis->m_engine.setAudioChannelMode(AudioChannelMode::Right);
                         pThis->showOsdMessage(L"Audio Mode: Right Channel");
                         break;
+                    case IDM_AUDIO_OUT_AUTO:
+                        pThis->m_engine.setAudioOutputMode(AudioOutputMode::Auto);
+                        pThis->showOsdMessage(L"Audio Output: Auto");
+                        if (pThis->m_controlBarHwnd) InvalidateRect(pThis->m_controlBarHwnd, nullptr, FALSE);
+                        break;
+                    case IDM_AUDIO_OUT_STEREO:
+                        pThis->m_engine.setAudioOutputMode(AudioOutputMode::Stereo);
+                        pThis->showOsdMessage(L"Audio Output: Stereo (2.0)");
+                        if (pThis->m_controlBarHwnd) InvalidateRect(pThis->m_controlBarHwnd, nullptr, FALSE);
+                        break;
+                    case IDM_AUDIO_OUT_MONO:
+                        pThis->m_engine.setAudioOutputMode(AudioOutputMode::Mono);
+                        pThis->showOsdMessage(L"Audio Output: Mono (1.0)");
+                        if (pThis->m_controlBarHwnd) InvalidateRect(pThis->m_controlBarHwnd, nullptr, FALSE);
+                        break;
+                    case IDM_AUDIO_OUT_ORIGINAL:
+                        pThis->m_engine.setAudioOutputMode(AudioOutputMode::Original);
+                        pThis->showOsdMessage(L"Audio Output: Original Multichannel");
+                        if (pThis->m_controlBarHwnd) InvalidateRect(pThis->m_controlBarHwnd, nullptr, FALSE);
+                        break;
                     case IDM_AUDIO_EQUALIZER:   pThis->toggleAudioPanel(); break;
                     case IDM_MUTE:              pThis->toggleMute(); break;
                     case IDM_VOL_UP: {
@@ -2755,22 +2867,39 @@ LRESULT CALLBACK RXMainWindow::controlBarWndProc(HWND hwnd, UINT msg, WPARAM wPa
                 }
                 if (PtInRect(&pThis->m_rcAudioCodecBadge, pt)) {
                     const auto& mi = pThis->m_engine.getMediaInfo();
-                    std::wstring msg = L"Audio: " + rx::utils::utf8ToWide(mi.audioCodec);
-                    if (mi.audioSampleRate > 0) {
-                        msg += L" (" + std::to_wstring(mi.audioSampleRate / 1000) + L"." +
-                               std::to_wstring((mi.audioSampleRate % 1000) / 100) + L" kHz)";
-                    }
+                    std::string srcCodec = mi.audioCodec.empty() ? "N/A" : mi.audioCodec;
+                    std::transform(srcCodec.begin(), srcCodec.end(), srcCodec.begin(), ::toupper);
+                    std::string outFmt = pThis->m_engine.getOutputAudioFormat();
+                    std::transform(outFmt.begin(), outFmt.end(), outFmt.begin(), ::toupper);
+                    int inSr = mi.audioSampleRate;
+                    int outSr = pThis->m_engine.getOutputSampleRate();
+
+                    std::wstring msg = L"Audio Codec: Source " + rx::utils::utf8ToWide(srcCodec);
+                    if (inSr > 0) msg += L" (" + std::to_wstring(inSr / 1000) + L"." + std::to_wstring((inSr % 1000) / 100) + L" kHz)";
+                    msg += L" \x2192 Output " + rx::utils::utf8ToWide(outFmt);
+                    if (outSr > 0) msg += L" (" + std::to_wstring(outSr / 1000) + L"." + std::to_wstring((outSr % 1000) / 100) + L" kHz)";
                     pThis->showOsdMessage(msg);
                     return 0;
                 }
                 if (PtInRect(&pThis->m_rcChannelsBadge, pt)) {
                     const auto& mi = pThis->m_engine.getMediaInfo();
-                    std::wstring chDesc = (mi.audioChannels == 6) ? L"5.1 Surround" :
-                                         (mi.audioChannels == 8) ? L"7.1 Surround" :
-                                         (mi.audioChannels == 2) ? L"2.0 Stereo" :
-                                         (mi.audioChannels == 1) ? L"1.0 Mono" :
-                                         (std::to_wstring(mi.audioChannels) + L" Channels");
-                    pThis->showOsdMessage(L"Channels: " + chDesc);
+                    int inCh = mi.audioChannels;
+                    int outCh = pThis->m_engine.getOutputAudioChannels();
+                    auto formatDesc = [](int ch) -> std::wstring {
+                        if (ch == 6) return L"5.1 Surround";
+                        if (ch == 8) return L"7.1 Surround";
+                        if (ch == 2) return L"2.0 Stereo";
+                        if (ch == 1) return L"1.0 Mono";
+                        return std::to_wstring(ch) + L" Channels";
+                    };
+
+                    std::wstring msg;
+                    if (outCh > 0 && outCh != inCh) {
+                        msg = L"Audio Channels: Source " + formatDesc(inCh) + L" \x2192 Output " + formatDesc(outCh);
+                    } else {
+                        msg = L"Audio Channels: " + formatDesc(inCh);
+                    }
+                    pThis->showOsdMessage(msg);
                     return 0;
                 }
             }

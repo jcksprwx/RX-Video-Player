@@ -56,6 +56,24 @@ private:
     HWND m_chkRememberPos = nullptr;
     HWND m_chkHwdec = nullptr;
     HWND m_chkWASAPIExclusive = nullptr;
+
+    // Audio Output & Multichannel Downmixing (Category 3: Audio)
+    HWND m_lblAudMode = nullptr;
+    HWND m_comboAudMode = nullptr;
+    HWND m_lblAudCenter = nullptr;
+    HWND m_tbAudCenter = nullptr;
+    HWND m_lblValAudCenter = nullptr;
+    HWND m_lblAudSurround = nullptr;
+    HWND m_tbAudSurround = nullptr;
+    HWND m_lblValAudSurround = nullptr;
+    HWND m_chkAudLfe = nullptr;
+    HWND m_tbAudLfe = nullptr;
+    HWND m_lblValAudLfe = nullptr;
+    HWND m_chkAudNormalize = nullptr;
+    HWND m_lblAudRate = nullptr;
+    HWND m_comboAudRate = nullptr;
+    HWND m_chkAudGlobal = nullptr;
+
     HWND m_chkAutoLoadSubs = nullptr;
     HWND m_btnOpenSubSettings = nullptr;
     HWND m_lblSubSummary = nullptr;

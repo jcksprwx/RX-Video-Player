@@ -2,7 +2,7 @@
 ; With full Windows "Open with" and Default Programs Registration
 
 !define PRODUCT_NAME "RX Media Player"
-!define PRODUCT_VERSION "2.6.0"
+!define PRODUCT_VERSION "2.7.0"
 !define PRODUCT_PUBLISHER "RX Media Player"
 !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\rx_player.exe"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
@@ -30,7 +30,7 @@ SetCompressor /SOLID lzma
 !insertmacro MUI_LANGUAGE "English"
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "..\dist_installer\RX_Media_Player_Setup_2.6.0.exe"
+OutFile "..\dist_installer\RX_Media_Player_Setup_2.7.0.exe"
 InstallDir "$PROGRAMFILES64\RX Media Player"
 InstallDirRegKey HKLM "${PRODUCT_DIR_REGKEY}" ""
 ShowInstDetails show

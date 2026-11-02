@@ -83,6 +83,14 @@ void Settings::load(const std::string& path) {
             else if (key == "eqNormalize") audio.equalizer.normalize = (val == "1" || val == "true");
             else if (key == "eqDownmix") audio.equalizer.stereoDownmix = (val == "1" || val == "true");
             else if (key == "eqBalance") audio.equalizer.leftRightBalance = std::stod(val);
+            else if (key == "outputMode") audio.downmix.outputMode = static_cast<AudioOutputMode>(std::stoi(val));
+            else if (key == "centerMixLevel") audio.downmix.centerMixLevel = std::stod(val);
+            else if (key == "surroundMixLevel") audio.downmix.surroundMixLevel = std::stod(val);
+            else if (key == "includeLfe") audio.downmix.includeLfe = (val == "1" || val == "true");
+            else if (key == "lfeMixLevel") audio.downmix.lfeMixLevel = std::stod(val);
+            else if (key == "normalizeDownmix") audio.downmix.normalizeDownmix = (val == "1" || val == "true");
+            else if (key == "outputSampleRate") audio.downmix.outputSampleRate = std::stoi(val);
+            else if (key == "globalSetting") audio.downmix.globalSetting = (val == "1" || val == "true");
             else if (key == "eqGains") {
                 std::stringstream ss(val);
                 std::string token;
@@ -189,6 +197,14 @@ void Settings::save(const std::string& path) {
     file << "eqNormalize=" << (audio.equalizer.normalize ? "1" : "0") << "\n";
     file << "eqDownmix=" << (audio.equalizer.stereoDownmix ? "1" : "0") << "\n";
     file << "eqBalance=" << audio.equalizer.leftRightBalance << "\n";
+    file << "outputMode=" << static_cast<int>(audio.downmix.outputMode) << "\n";
+    file << "centerMixLevel=" << audio.downmix.centerMixLevel << "\n";
+    file << "surroundMixLevel=" << audio.downmix.surroundMixLevel << "\n";
+    file << "includeLfe=" << (audio.downmix.includeLfe ? "1" : "0") << "\n";
+    file << "lfeMixLevel=" << audio.downmix.lfeMixLevel << "\n";
+    file << "normalizeDownmix=" << (audio.downmix.normalizeDownmix ? "1" : "0") << "\n";
+    file << "outputSampleRate=" << audio.downmix.outputSampleRate << "\n";
+    file << "globalSetting=" << (audio.downmix.globalSetting ? "1" : "0") << "\n";
     file << "eqGains=";
     for (size_t i = 0; i < audio::kEqualizerBandCount; ++i) {
         if (i > 0) file << ",";

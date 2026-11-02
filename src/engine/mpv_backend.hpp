@@ -95,6 +95,16 @@ public:
     void setAudioChannelMode(AudioChannelMode mode);
     AudioChannelMode getAudioChannelMode() const { return m_channelMode; }
 
+    // Stereo audio output & multichannel downmixing
+    void setAudioOutputMode(AudioOutputMode mode);
+    AudioOutputMode getAudioOutputMode() const { return m_downmixConfig.outputMode; }
+    void applyStereoDownmixConfig(const StereoDownmixConfig& config);
+    const StereoDownmixConfig& getStereoDownmixConfig() const { return m_downmixConfig; }
+    std::string cycleAudioOutputMode();
+    int getOutputAudioChannels() const;
+    std::string getOutputAudioFormat() const;
+    int getOutputSampleRate() const;
+
     // Hardware acceleration
     void setHardwareAcceleration(bool enabled, const std::string& api = "auto-safe");
     std::string getActiveHwdec() const { return m_activeHwdec; }
@@ -144,6 +154,10 @@ private:
     int m_selectedSubTrack = 1;
     bool m_subtitlesVisible = true;
     AudioChannelMode m_channelMode = AudioChannelMode::Both;
+    StereoDownmixConfig m_downmixConfig;
+    int m_outAudioChannels = 0;
+    std::string m_outAudioFormat;
+    int m_outAudioSampleRate = 0;
     double m_audioDelay = 0.0;
     double m_videoDelay = 0.0;
     std::string m_audioFilter;

@@ -301,7 +301,8 @@ void RXAudioPanel::setEqualizerState(const audio::EqualizerState& state) {
 
     SendMessageW(m_chkEqEnable, BM_SETCHECK, state.enabled ? BST_CHECKED : BST_UNCHECKED, 0);
     SendMessageW(m_chkNormalize, BM_SETCHECK, state.normalize ? BST_CHECKED : BST_UNCHECKED, 0);
-    SendMessageW(m_chkDownmix, BM_SETCHECK, state.stereoDownmix ? BST_CHECKED : BST_UNCHECKED, 0);
+    bool downmixActive = state.stereoDownmix || (m_engine.getAudioOutputMode() == AudioOutputMode::Stereo);
+    SendMessageW(m_chkDownmix, BM_SETCHECK, downmixActive ? BST_CHECKED : BST_UNCHECKED, 0);
 
     SendMessageW(m_comboPreset, CB_SETCURSEL, static_cast<int>(state.preset), 0);
 

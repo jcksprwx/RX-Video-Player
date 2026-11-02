@@ -22,6 +22,7 @@ struct AudioSettings {
     bool exclusiveMode = false;
     double delayMs = 0.0;
     audio::EqualizerState equalizer;
+    StereoDownmixConfig downmix;
 };
 
 struct VideoSettings {

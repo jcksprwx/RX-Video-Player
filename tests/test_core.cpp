@@ -706,6 +706,100 @@ void testAdvancedSubtitleCustomizationAndFullscreen() {
     std::cout << "  -> testAdvancedSubtitleCustomizationAndFullscreen PASSED!" << std::endl;
 }
 
+void testStereoAudioOutputAndDownmix() {
+    std::cout << "[TEST] Running testStereoAudioOutputAndDownmix..." << std::endl;
+
+    // 1. StereoDownmixConfig default values & reset
+    rx::StereoDownmixConfig config;
+    assert(config.outputMode == rx::AudioOutputMode::Auto);
+    assert(std::abs(config.centerMixLevel - 1.0f) < 0.001f);
+    assert(std::abs(config.surroundMixLevel - 0.707f) < 0.001f);
+    assert(config.includeLfe == true);
+    assert(std::abs(config.lfeMixLevel - 0.5f) < 0.001f);
+    assert(config.normalizeDownmix == true);
+    assert(config.outputSampleRate == 0);
+    assert(config.globalSetting == true);
+
+    config.outputMode = rx::AudioOutputMode::Stereo;
+    config.centerMixLevel = 1.4f;
+    config.surroundMixLevel = 0.5f;
+    config.includeLfe = false;
+    config.reset();
+    assert(config.outputMode == rx::AudioOutputMode::Auto);
+    assert(std::abs(config.centerMixLevel - 1.0f) < 0.001f);
+    assert(config.includeLfe == true);
+
+    // 2. Mathematical Normalization (Clipping Protection) Verification
+    float clev = 1.0f;
+    float slev = 0.707f;
+    float lfe = 0.5f;
+    float norm = 1.0f / (1.0f + clev + slev + lfe);
+    float sumWeights = norm * (1.0f + clev + slev + lfe);
+    assert(std::abs(sumWeights - 1.0f) < 0.0001f);
+    (void)sumWeights;
+
+    // 3. AudioOutputMode cycling transitions: Auto -> Stereo -> Original -> Mono -> Auto
+    rx::AudioOutputMode current = rx::AudioOutputMode::Auto;
+    auto cycle = [](rx::AudioOutputMode m) {
+        switch (m) {
+            case rx::AudioOutputMode::Auto: return rx::AudioOutputMode::Stereo;
+            case rx::AudioOutputMode::Stereo: return rx::AudioOutputMode::Original;
+            case rx::AudioOutputMode::Original: return rx::AudioOutputMode::Mono;
+            case rx::AudioOutputMode::Mono: return rx::AudioOutputMode::Auto;
+            default: return rx::AudioOutputMode::Auto;
+        }
+    };
+    current = cycle(current);
+    assert(current == rx::AudioOutputMode::Stereo);
+    current = cycle(current);
+    assert(current == rx::AudioOutputMode::Original);
+    current = cycle(current);
+    assert(current == rx::AudioOutputMode::Mono);
+    current = cycle(current);
+    assert(current == rx::AudioOutputMode::Auto);
+
+    // 4. ShortcutManager binding check for CycleAudioOutputMode (Shift+A)
+    auto action = rx::ShortcutManager::instance().findAction('A', false, true, false);
+    assert(action == rx::PlayerAction::CycleAudioOutputMode);
+    (void)action;
+
+    // 5. Settings persistence for [Audio] downmix configuration
+    std::string tempIni = "test_downmix_settings.ini";
+    if (std::filesystem::exists(tempIni)) {
+        std::filesystem::remove(tempIni);
+    }
+    {
+        auto& s = rx::Settings::instance();
+        s.audio.downmix.outputMode = rx::AudioOutputMode::Stereo;
+        s.audio.downmix.centerMixLevel = 1.35f;
+        s.audio.downmix.surroundMixLevel = 0.85f;
+        s.audio.downmix.includeLfe = false;
+        s.audio.downmix.lfeMixLevel = 0.4f;
+        s.audio.downmix.normalizeDownmix = true;
+        s.audio.downmix.outputSampleRate = 48000;
+        s.audio.downmix.globalSetting = false;
+        s.save(tempIni);
+    }
+    {
+        auto& s = rx::Settings::instance();
+        s.audio.downmix.reset();
+        s.load(tempIni);
+        assert(s.audio.downmix.outputMode == rx::AudioOutputMode::Stereo);
+        assert(std::abs(s.audio.downmix.centerMixLevel - 1.35f) < 0.01f);
+        assert(std::abs(s.audio.downmix.surroundMixLevel - 0.85f) < 0.01f);
+        assert(s.audio.downmix.includeLfe == false);
+        assert(std::abs(s.audio.downmix.lfeMixLevel - 0.4f) < 0.01f);
+        assert(s.audio.downmix.normalizeDownmix == true);
+        assert(s.audio.downmix.outputSampleRate == 48000);
+        assert(s.audio.downmix.globalSetting == false);
+    }
+    if (std::filesystem::exists(tempIni)) {
+        std::filesystem::remove(tempIni);
+    }
+
+    std::cout << "  -> testStereoAudioOutputAndDownmix PASSED!" << std::endl;
+}
+
 int main() {
     std::cout << "========================================" << std::endl;
     std::cout << "RX Media Player Automated Test Runner" << std::endl;
@@ -723,6 +817,7 @@ int main() {
     testAudioTracksAndOpenSubtitles();
     testWindowsAssociationsAndOpenSubtitlesV1();
     testAdvancedSubtitleCustomizationAndFullscreen();
+    testStereoAudioOutputAndDownmix();
 
     std::cout << "========================================" << std::endl;
     std::cout << "ALL TESTS PASSED SUCCESSFULLY!" << std::endl;

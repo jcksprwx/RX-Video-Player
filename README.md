@@ -1,7 +1,7 @@
 # RX Media Player
 
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(64--bit)-0078D6?style=flat-square&logo=windows)](https://microsoft.com/windows)
-[![Version: 2.6.0](https://img.shields.io/badge/Version-2.6.0-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.6.0)
+[![Version: 2.7.0](https://img.shields.io/badge/Version-2.7.0-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.7.0)
 [![Author: Rituraj](https://img.shields.io/badge/Author-Rituraj-blueviolet?style=flat-square)](https://github.com/jcksprwx)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![C++: 20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=c%2B%2B)](https://en.cppreference.com/w/cpp/20)
@@ -120,9 +120,23 @@ Legacy Windows media players are often cluttered with outdated interfaces, slugg
 - **Action Buttons:** Apply (applies changes immediately with OSD notification), OK (applies, saves to INI, closes), Cancel (reverts to original style), Reset Tab, and Reset All.
 - **Direct Playback Engine Synchronization:** All subtitle parameters map directly to `libmpv` runtime properties (`sub-font`, `sub-font-size`, `sub-color`, `sub-border-color`, `sub-border-size`, `sub-shadow-color`, `sub-shadow-offset`, `sub-back-color`, `sub-pos`, `sub-margin-y`, `sub-align-x`, `sub-align-y`, `sub-bold`, `sub-italic`, `sub-ass-override`, `sub-auto`, `slang`, `sub-delay`).
 
+### 🔊 Stereo Audio Output & Multichannel Downmixing (v2.7.0)
+- **Engine-Level Real-Time Downmixing:** Dynamic conversion of multichannel audio formats (Dolby Digital 5.1, Dolby Digital Plus 5.1/7.1, DTS 5.1/7.1, TrueHD, LPCM 7.1) into clean Stereo 2.0 or Mono 1.0 output without interrupting playback or re-buffering.
+- **Audio Output Mode Submenu:** Accessible via right-click context menu, Audio track popup menu, or Audio settings panel:
+  - `Auto (Follow Source / Device)`
+  - `Stereo (2.0)`
+  - `Mono (1.0)`
+  - `Original Multichannel Output`
+  - Rendered with classic radio indicators and RX golden yellow highlight.
+- **Dialogue Boost & Spatial Customization:** Configurable center channel mix level (dialogue intelligibility boost up to +3.5 dB), surround channel mix level (spatial ambient presence), and subwoofer / LFE (Low Frequency Effects) channel inclusion.
+- **Mathematical Clipping Protection:** Automatic normalization guarantees the combined matrix gain never exceeds 0 dBFS ($norm = 1.0 / (1.0 + clev + slev + lfe)$), preventing digital distortion and harsh clipping during loud action sequences.
+- **Source vs Output Separation & Toolbar Badges:** Bottom toolbar displays active channel mapping badges such as `[ 5.1 -> 2.0 ]` or `[ 7.1 -> 2.0 ]`. Playback / System Information window (`Ctrl+I`) explicitly separates Source Audio specifications from Output Audio specifications (channels, codec, and sample rate).
+- **Cycle Mode Hotkey (`Shift+A`):** Quick toggle hotkey cycling through `Auto -> Stereo (2.0) -> Original Multichannel -> Mono (1.0)` with instant OSD overlay notifications.
+- **Preferences Integration:** Full configuration panel in **Preferences (`F5`) → Audio** with live sliders, sample rate overrides (Source, 44.1 kHz, 48.0 kHz, 96.0 kHz), and INI persistence under `[Audio]`.
+
 ---
 
-## ⌨️ Keyboard Shortcuts & OSD Reference (v2.4.1)
+## ⌨️ Keyboard Shortcuts & OSD Reference (v2.7.0)
 
 Every keyboard shortcut executes instantly and displays real-time On-Screen Display (OSD) feedback directly over the video presentation canvas. Shortcuts are fully configurable in **Preferences (`F5`)** under the Keyboard Shortcuts tab, with searchable reference in **Help → Keyboard Shortcuts (`F1`)**.
 
@@ -147,6 +161,7 @@ Every keyboard shortcut executes instantly and displays real-time On-Screen Disp
 | | **Ctrl + Plus / Minus** | Zoom In / Out (±10%) | `Zoom: 110%` / `Zoom: 90%` |
 | | **Ctrl + R** | Rotate Video 90° Clockwise | `Rotation: 90°` |
 | **Audio & Subtitles** | **Alt + A** / **A** | Cycle Audio Streams | `Audio Track: <Track Name>` |
+| | **Shift + A** | Cycle Audio Output Mode (Stereo/Mono/Original) | `Audio Output: Stereo (2.0)` |
 | | **Ctrl + Shift + A** | Open Audio Track Menu | Visual Dark Popup Menu |
 | | **L** | Cycle Subtitle Streams | `Subtitle Track: <Track Name>` / `Subtitles: Off` |
 | | **Alt + L** | Toggle Subtitles On / Off | `Subtitle Track: <Name>` / `Subtitles: Off` |

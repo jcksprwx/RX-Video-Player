@@ -62,6 +62,7 @@ enum class PlayerAction {
 
     // Audio & Subtitles
     CycleAudioTrack,
+    CycleAudioOutputMode,
     CycleSubtitleTrack,
     ToggleSubtitles,
     SubtitleDelayDown,

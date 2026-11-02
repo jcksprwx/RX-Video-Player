@@ -233,6 +233,8 @@ void ShortcutManager::initialize() {
     // 9. Audio
     registerAction(PlayerAction::CycleAudioTrack, "CycleAudioTrack", L"Cycle Audio Tracks", L"Audio",
                    { { 'A', false, false, true }, { 'A', false, false, false } }, L"Switch to next audio stream (Alt+A)");
+    registerAction(PlayerAction::CycleAudioOutputMode, "CycleAudioOutputMode", L"Cycle Audio Output Mode", L"Audio",
+                   { { 'A', false, true, false } }, L"Cycle output modes: Auto -> Stereo -> Original -> Mono (Shift+A)");
     registerAction(PlayerAction::OpenAudioMenu, "OpenAudioMenu", L"Open Audio Stream Menu", L"Audio",
                    { { 'A', true, true, false } }, L"Open popup audio track selection menu");
     registerAction(PlayerAction::AudioChannelBoth, "AudioChannelBoth", L"Channel Mode: Both", L"Audio",

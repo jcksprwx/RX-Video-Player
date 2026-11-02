@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <sstream>
 #include <cmath>
+#include <algorithm>
 
 namespace rx::ui {
 
@@ -462,8 +463,16 @@ std::wstring RXInfoDialog::generatePlaybackInfoText() const {
     oss << L"- Hardware Acceleration: " << (m_diagReport.hwdecActive.empty() || m_diagReport.hwdecActive == "no" ? L"Disabled (Software Decoding)" : rx::utils::utf8ToWide(m_diagReport.hwdecActive) + L" [D3D11VA]") << L"\r\n";
     oss << L"- Video Render Surface: Direct3D 11 (NV12 SwapChain)\r\n";
     oss << L"- Audio Output Device: " << m_sysTelemetry.audioDevice << L" via WASAPI\r\n";
-    oss << L"- Audio Stream Format: " << m_diagReport.audioSampleRate << L" Hz, " << m_diagReport.audioChannels << L" Channels, 16-bit PCM\r\n";
-    oss << L"- Audio Resampler: lavr / swresample (High Quality)\r\n";
+    oss << L"- Source Audio Stream: " << (m_diagReport.audioCodec.empty() ? L"N/A" : rx::utils::utf8ToWide(m_diagReport.audioCodec))
+        << L", " << m_diagReport.audioSampleRate << L" Hz, " << m_diagReport.audioChannels << L" Channels ("
+        << (m_diagReport.audioChannelLayout.empty() ? (m_diagReport.audioChannels == 2 ? L"Stereo" : (m_diagReport.audioChannels == 6 ? L"5.1" : L"Multi")) : rx::utils::utf8ToWide(m_diagReport.audioChannelLayout)) << L")\r\n";
+    int outCh = (m_diagReport.outAudioChannels > 0) ? m_diagReport.outAudioChannels : m_diagReport.audioChannels;
+    int outSr = (m_diagReport.outAudioSampleRate > 0) ? m_diagReport.outAudioSampleRate : m_diagReport.audioSampleRate;
+    std::wstring outFmt = m_diagReport.outAudioFormat.empty() ? L"32-bit Float PCM" : rx::utils::utf8ToWide(m_diagReport.outAudioFormat);
+    std::wstring outLayoutDesc = (outCh == 2) ? L"Stereo 2.0" : (outCh == 1) ? L"Mono 1.0" : (outCh == 6) ? L"5.1 Multichannel" : L"Multichannel";
+    oss << L"- Output Audio Stream: " << outFmt << L", " << outSr << L" Hz, " << outCh << L" Channels ("
+        << outLayoutDesc << L") via WASAPI\r\n";
+    oss << L"- Audio Resampler: lavr / swresample (High Quality Downmixing & Clipping Protection)\r\n";
     oss << L"- A/V Synchronization: " << std::fixed << std::setprecision(1) << (m_diagReport.avSyncDiffSec * 1000.0) << L" ms (Audio Master Clock)\r\n";
 
     return oss.str();
@@ -931,7 +940,11 @@ void RXInfoDialog::onPaint(HDC hdc) {
 
         int aRowY = yBase + 238;
         std::wstring aCodec = m_diagReport.audioCodec.empty() ? L"N/A" : rx::utils::utf8ToWide(m_diagReport.audioCodec);
-        drawLabelValue(memDC, col1X, aRowY, 88, L"Codec:", aCodec.c_str());
+        std::transform(aCodec.begin(), aCodec.end(), aCodec.begin(), ::towupper);
+        std::wstring outFmt = m_diagReport.outAudioFormat.empty() ? L"PCM" : rx::utils::utf8ToWide(m_diagReport.outAudioFormat);
+        std::transform(outFmt.begin(), outFmt.end(), outFmt.begin(), ::towupper);
+        std::wstring codecStr = aCodec + L" \x2192 " + outFmt;
+        drawLabelValue(memDC, col1X, aRowY, 88, L"Codec:", codecStr.c_str());
 
         std::wostringstream srOss;
         if (m_diagReport.audioSampleRate > 0) {

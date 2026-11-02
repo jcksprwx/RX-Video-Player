@@ -4,6 +4,7 @@
 #include "../../subtitles/opensubtitles_client.hpp"
 #include <commctrl.h>
 #include <algorithm>
+#include <cmath>
 #include <thread>
 
 namespace rx::ui {
@@ -41,6 +42,16 @@ constexpr UINT IDC_PREF_OS_LANGS       = 4027;
 constexpr UINT IDC_PREF_OPEN_SUB_SETTINGS = 4030;
 constexpr UINT IDC_PREF_OS_AUTOSEARCH  = 4028;
 constexpr UINT IDC_PREF_OS_AUTOAPPLY   = 4029;
+
+// Audio Output & Downmix IDs
+constexpr UINT IDC_PREF_AUD_MODE        = 4040;
+constexpr UINT IDC_PREF_AUD_TB_CENTER   = 4041;
+constexpr UINT IDC_PREF_AUD_TB_SURROUND = 4042;
+constexpr UINT IDC_PREF_AUD_CHK_LFE     = 4043;
+constexpr UINT IDC_PREF_AUD_TB_LFE      = 4044;
+constexpr UINT IDC_PREF_AUD_CHK_NORM    = 4045;
+constexpr UINT IDC_PREF_AUD_COMBO_RATE  = 4046;
+constexpr UINT IDC_PREF_AUD_CHK_GLOBAL  = 4047;
 
 RXPreferencesDialog::RXPreferencesDialog() = default;
 
@@ -215,13 +226,122 @@ void RXPreferencesDialog::onInitDialog() {
     SendMessageW(m_chkHwdec, WM_SETFONT, (WPARAM)m_font, TRUE);
     SendMessageW(m_chkHwdec, BM_SETCHECK, s.video.hwdecEnabled ? BST_CHECKED : BST_UNCHECKED, 0);
 
+    // Category 3: Audio & Multichannel Downmixing Controls
+    int audY = 55;
+    m_lblAudMode = CreateWindowExW(0, L"STATIC", L"Output Channel Layout / Downmix Mode:", WS_CHILD,
+                                  205, audY, 320, 18, m_hwnd, nullptr, hInst, nullptr);
+    SendMessageW(m_lblAudMode, WM_SETFONT, (WPARAM)m_boldFont, TRUE);
+    audY += 20;
+
+    m_comboAudMode = CreateWindowExW(0, L"COMBOBOX", L"",
+                                     WS_CHILD | CBS_DROPDOWNLIST | WS_VSCROLL,
+                                     205, audY, 400, 140, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_AUD_MODE, hInst, nullptr);
+    SendMessageW(m_comboAudMode, WM_SETFONT, (WPARAM)m_font, TRUE);
+    SendMessageW(m_comboAudMode, CB_ADDSTRING, 0, (LPARAM)L"Auto (Follow Source & Device Capabilities)");
+    SendMessageW(m_comboAudMode, CB_ADDSTRING, 0, (LPARAM)L"Stereo (2.0 Channel Downmix)");
+    SendMessageW(m_comboAudMode, CB_ADDSTRING, 0, (LPARAM)L"Mono (1.0 Single Channel Downmix)");
+    SendMessageW(m_comboAudMode, CB_ADDSTRING, 0, (LPARAM)L"Original Multichannel Output (5.1 / 7.1 Passthrough)");
+    SendMessageW(m_comboAudMode, CB_SETCURSEL, static_cast<WPARAM>(s.audio.downmix.outputMode), 0);
+    audY += 30;
+
+    // Center / Dialogue Mix Level
+    m_lblAudCenter = CreateWindowExW(0, L"STATIC", L"Center / Dialogue Mix Level:", WS_CHILD,
+                                    205, audY, 190, 18, m_hwnd, nullptr, hInst, nullptr);
+    SendMessageW(m_lblAudCenter, WM_SETFONT, (WPARAM)m_font, TRUE);
+
+    m_tbAudCenter = CreateWindowExW(0, TRACKBAR_CLASSW, L"", WS_CHILD | TBS_AUTOTICKS | TBS_NOTICKS,
+                                   400, audY - 2, 240, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_AUD_TB_CENTER, hInst, nullptr);
+    SendMessageW(m_tbAudCenter, TBM_SETRANGE, TRUE, MAKELPARAM(0, 200));
+    int centerPct = static_cast<int>(std::round(s.audio.downmix.centerMixLevel * 100.0));
+    SendMessageW(m_tbAudCenter, TBM_SETPOS, TRUE, centerPct);
+
+    m_lblValAudCenter = CreateWindowExW(0, L"STATIC", (std::to_wstring(centerPct) + L"%").c_str(), WS_CHILD | SS_RIGHT,
+                                       645, audY, 65, 18, m_hwnd, nullptr, hInst, nullptr);
+    SendMessageW(m_lblValAudCenter, WM_SETFONT, (WPARAM)m_font, TRUE);
+    audY += 26;
+
+    // Surround Mix Level
+    m_lblAudSurround = CreateWindowExW(0, L"STATIC", L"Surround Channels Mix Level:", WS_CHILD,
+                                      205, audY, 190, 18, m_hwnd, nullptr, hInst, nullptr);
+    SendMessageW(m_lblAudSurround, WM_SETFONT, (WPARAM)m_font, TRUE);
+
+    m_tbAudSurround = CreateWindowExW(0, TRACKBAR_CLASSW, L"", WS_CHILD | TBS_AUTOTICKS | TBS_NOTICKS,
+                                     400, audY - 2, 240, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_AUD_TB_SURROUND, hInst, nullptr);
+    SendMessageW(m_tbAudSurround, TBM_SETRANGE, TRUE, MAKELPARAM(0, 150));
+    int surrPct = static_cast<int>(std::round(s.audio.downmix.surroundMixLevel * 100.0));
+    SendMessageW(m_tbAudSurround, TBM_SETPOS, TRUE, surrPct);
+
+    m_lblValAudSurround = CreateWindowExW(0, L"STATIC", (std::to_wstring(surrPct) + L"%").c_str(), WS_CHILD | SS_RIGHT,
+                                         645, audY, 65, 18, m_hwnd, nullptr, hInst, nullptr);
+    SendMessageW(m_lblValAudSurround, WM_SETFONT, (WPARAM)m_font, TRUE);
+    audY += 26;
+
+    // LFE Inclusion & Level
+    m_chkAudLfe = CreateWindowExW(0, L"BUTTON", L"Include LFE (Subwoofer) in stereo downmix",
+                                  WS_CHILD | BS_AUTOCHECKBOX,
+                                  205, audY, 340, 22, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_AUD_CHK_LFE, hInst, nullptr);
+    SendMessageW(m_chkAudLfe, WM_SETFONT, (WPARAM)m_font, TRUE);
+    SendMessageW(m_chkAudLfe, BM_SETCHECK, s.audio.downmix.includeLfe ? BST_CHECKED : BST_UNCHECKED, 0);
+
+    m_tbAudLfe = CreateWindowExW(0, TRACKBAR_CLASSW, L"", WS_CHILD | TBS_AUTOTICKS | TBS_NOTICKS,
+                                550, audY - 2, 90, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_AUD_TB_LFE, hInst, nullptr);
+    SendMessageW(m_tbAudLfe, TBM_SETRANGE, TRUE, MAKELPARAM(0, 100));
+    int lfePct = static_cast<int>(std::round(s.audio.downmix.lfeMixLevel * 100.0));
+    SendMessageW(m_tbAudLfe, TBM_SETPOS, TRUE, lfePct);
+
+    m_lblValAudLfe = CreateWindowExW(0, L"STATIC", (std::to_wstring(lfePct) + L"%").c_str(), WS_CHILD | SS_RIGHT,
+                                    645, audY, 65, 18, m_hwnd, nullptr, hInst, nullptr);
+    SendMessageW(m_lblValAudLfe, WM_SETFONT, (WPARAM)m_font, TRUE);
+    audY += 26;
+
+    // Clipping Protection / Normalization
+    m_chkAudNormalize = CreateWindowExW(0, L"BUTTON", L"Normalize downmix matrix (clipping & saturation protection)",
+                                       WS_CHILD | BS_AUTOCHECKBOX,
+                                       205, audY, 510, 22, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_AUD_CHK_NORM, hInst, nullptr);
+    SendMessageW(m_chkAudNormalize, WM_SETFONT, (WPARAM)m_font, TRUE);
+    SendMessageW(m_chkAudNormalize, BM_SETCHECK, s.audio.downmix.normalizeDownmix ? BST_CHECKED : BST_UNCHECKED, 0);
+    audY += 26;
+
+    // Resample Output Rate Override
+    m_lblAudRate = CreateWindowExW(0, L"STATIC", L"Resample Output Rate:", WS_CHILD,
+                                  205, audY + 2, 160, 18, m_hwnd, nullptr, hInst, nullptr);
+    SendMessageW(m_lblAudRate, WM_SETFONT, (WPARAM)m_font, TRUE);
+
+    m_comboAudRate = CreateWindowExW(0, L"COMBOBOX", L"",
+                                     WS_CHILD | CBS_DROPDOWNLIST | WS_VSCROLL,
+                                     370, audY, 230, 140, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_AUD_COMBO_RATE, hInst, nullptr);
+    SendMessageW(m_comboAudRate, WM_SETFONT, (WPARAM)m_font, TRUE);
+    SendMessageW(m_comboAudRate, CB_ADDSTRING, 0, (LPARAM)L"Auto (Match Source / Device)");
+    SendMessageW(m_comboAudRate, CB_ADDSTRING, 0, (LPARAM)L"44,100 Hz (CD Audio Standard)");
+    SendMessageW(m_comboAudRate, CB_ADDSTRING, 0, (LPARAM)L"48,000 Hz (Film & Studio Default)");
+    SendMessageW(m_comboAudRate, CB_ADDSTRING, 0, (LPARAM)L"96,000 Hz (High Resolution)");
+    SendMessageW(m_comboAudRate, CB_ADDSTRING, 0, (LPARAM)L"192,000 Hz (Studio Master)");
+    int curRateSel = 0;
+    if (s.audio.downmix.outputSampleRate == 44100) curRateSel = 1;
+    else if (s.audio.downmix.outputSampleRate == 48000) curRateSel = 2;
+    else if (s.audio.downmix.outputSampleRate == 96000) curRateSel = 3;
+    else if (s.audio.downmix.outputSampleRate == 192000) curRateSel = 4;
+    SendMessageW(m_comboAudRate, CB_SETCURSEL, curRateSel, 0);
+    audY += 28;
+
+    // WASAPI Exclusive Checkbox
     m_chkWASAPIExclusive = CreateWindowExW(
-        0, L"BUTTON", L"Enable WASAPI Exclusive Mode for bit-perfect audio output",
+        0, L"BUTTON", L"Enable WASAPI Exclusive Mode (Bit-perfect direct DAC output)",
         WS_CHILD | BS_AUTOCHECKBOX,
-        205, 60, 520, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_EXCLUSIVE, hInst, nullptr
+        205, audY, 520, 22, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_EXCLUSIVE, hInst, nullptr
     );
     SendMessageW(m_chkWASAPIExclusive, WM_SETFONT, (WPARAM)m_font, TRUE);
     SendMessageW(m_chkWASAPIExclusive, BM_SETCHECK, s.audio.exclusiveMode ? BST_CHECKED : BST_UNCHECKED, 0);
+    audY += 24;
+
+    // Global Persistence Checkbox
+    m_chkAudGlobal = CreateWindowExW(
+        0, L"BUTTON", L"Apply audio output preferences globally across all media sessions",
+        WS_CHILD | BS_AUTOCHECKBOX,
+        205, audY, 520, 22, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_AUD_CHK_GLOBAL, hInst, nullptr
+    );
+    SendMessageW(m_chkAudGlobal, WM_SETFONT, (WPARAM)m_font, TRUE);
+    SendMessageW(m_chkAudGlobal, BM_SETCHECK, s.audio.downmix.globalSetting ? BST_CHECKED : BST_UNCHECKED, 0);
 
     m_chkAutoLoadSubs = CreateWindowExW(
         0, L"BUTTON", L"Auto-detect and load companion subtitle files (.srt, .ass, .vtt)",
@@ -444,7 +564,22 @@ void RXPreferencesDialog::updateCategoryPanels(int categoryIndex) {
     ShowWindow(m_chkHwdec, showVid ? SW_SHOW : SW_HIDE);
 
     // Audio (3)
+    ShowWindow(m_lblAudMode, showAud ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_comboAudMode, showAud ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_lblAudCenter, showAud ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_tbAudCenter, showAud ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_lblValAudCenter, showAud ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_lblAudSurround, showAud ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_tbAudSurround, showAud ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_lblValAudSurround, showAud ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_chkAudLfe, showAud ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_tbAudLfe, showAud ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_lblValAudLfe, showAud ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_chkAudNormalize, showAud ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_lblAudRate, showAud ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_comboAudRate, showAud ? SW_SHOW : SW_HIDE);
     ShowWindow(m_chkWASAPIExclusive, showAud ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_chkAudGlobal, showAud ? SW_SHOW : SW_HIDE);
 
     // Subtitles (4)
     ShowWindow(m_chkAutoLoadSubs, showSub ? SW_SHOW : SW_HIDE);
@@ -719,6 +854,32 @@ void RXPreferencesDialog::saveAndApply() {
     s.audio.exclusiveMode = (SendMessageW(m_chkWASAPIExclusive, BM_GETCHECK, 0, 0) == BST_CHECKED);
     s.subtitle.autoLoad = (SendMessageW(m_chkAutoLoadSubs, BM_GETCHECK, 0, 0) == BST_CHECKED);
 
+    // Audio Output & Downmix Settings
+    int modeSel = static_cast<int>(SendMessageW(m_comboAudMode, CB_GETCURSEL, 0, 0));
+    if (modeSel >= 0) s.audio.downmix.outputMode = static_cast<AudioOutputMode>(modeSel);
+
+    int cPos = static_cast<int>(SendMessageW(m_tbAudCenter, TBM_GETPOS, 0, 0));
+    s.audio.downmix.centerMixLevel = cPos / 100.0;
+
+    int sPos = static_cast<int>(SendMessageW(m_tbAudSurround, TBM_GETPOS, 0, 0));
+    s.audio.downmix.surroundMixLevel = sPos / 100.0;
+
+    s.audio.downmix.includeLfe = (SendMessageW(m_chkAudLfe, BM_GETCHECK, 0, 0) == BST_CHECKED);
+    int lfePos = static_cast<int>(SendMessageW(m_tbAudLfe, TBM_GETPOS, 0, 0));
+    s.audio.downmix.lfeMixLevel = lfePos / 100.0;
+
+    s.audio.downmix.normalizeDownmix = (SendMessageW(m_chkAudNormalize, BM_GETCHECK, 0, 0) == BST_CHECKED);
+
+    int rateSel = static_cast<int>(SendMessageW(m_comboAudRate, CB_GETCURSEL, 0, 0));
+    int rate = 0;
+    if (rateSel == 1) rate = 44100;
+    else if (rateSel == 2) rate = 48000;
+    else if (rateSel == 3) rate = 96000;
+    else if (rateSel == 4) rate = 192000;
+    s.audio.downmix.outputSampleRate = rate;
+
+    s.audio.downmix.globalSetting = (SendMessageW(m_chkAudGlobal, BM_GETCHECK, 0, 0) == BST_CHECKED);
+
     wchar_t bufKey[256] = {0};
     GetWindowTextW(m_editOsApiKey, bufKey, 256);
     s.opensubtitles.apiKey = rx::utils::wideToUtf8(bufKey);
@@ -746,12 +907,26 @@ void RXPreferencesDialog::resetDefaults() {
         s.playback.rememberPosition = true;
         s.video.hwdecEnabled = true;
         s.audio.exclusiveMode = false;
+        s.audio.downmix.reset();
         s.subtitle.autoLoad = true;
 
         SendMessageW(m_chkAutoPlayNext, BM_SETCHECK, BST_CHECKED, 0);
         SendMessageW(m_chkRememberPos, BM_SETCHECK, BST_CHECKED, 0);
         SendMessageW(m_chkHwdec, BM_SETCHECK, BST_CHECKED, 0);
         SendMessageW(m_chkWASAPIExclusive, BM_SETCHECK, BST_UNCHECKED, 0);
+
+        SendMessageW(m_comboAudMode, CB_SETCURSEL, 0, 0);
+        SendMessageW(m_tbAudCenter, TBM_SETPOS, TRUE, 71);
+        SetWindowTextW(m_lblValAudCenter, L"71%");
+        SendMessageW(m_tbAudSurround, TBM_SETPOS, TRUE, 71);
+        SetWindowTextW(m_lblValAudSurround, L"71%");
+        SendMessageW(m_chkAudLfe, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessageW(m_tbAudLfe, TBM_SETPOS, TRUE, 50);
+        SetWindowTextW(m_lblValAudLfe, L"50%");
+        SendMessageW(m_chkAudNormalize, BM_SETCHECK, BST_CHECKED, 0);
+        SendMessageW(m_comboAudRate, CB_SETCURSEL, 0, 0);
+        SendMessageW(m_chkAudGlobal, BM_SETCHECK, BST_CHECKED, 0);
+
         SendMessageW(m_chkAutoLoadSubs, BM_SETCHECK, BST_CHECKED, 0);
 
         ShortcutManager::instance().restoreDefaults();
@@ -773,6 +948,21 @@ LRESULT CALLBACK RXPreferencesDialog::dlgProc(HWND hwnd, UINT msg, WPARAM wParam
 
     if (pThis) {
         switch (msg) {
+            case WM_HSCROLL: {
+                HWND tb = reinterpret_cast<HWND>(lParam);
+                int pos = static_cast<int>(SendMessageW(tb, TBM_GETPOS, 0, 0));
+                if (tb == pThis->m_tbAudCenter) {
+                    std::wstring txt = std::to_wstring(pos) + L"%";
+                    SetWindowTextW(pThis->m_lblValAudCenter, txt.c_str());
+                } else if (tb == pThis->m_tbAudSurround) {
+                    std::wstring txt = std::to_wstring(pos) + L"%";
+                    SetWindowTextW(pThis->m_lblValAudSurround, txt.c_str());
+                } else if (tb == pThis->m_tbAudLfe) {
+                    std::wstring txt = std::to_wstring(pos) + L"%";
+                    SetWindowTextW(pThis->m_lblValAudLfe, txt.c_str());
+                }
+                return 0;
+            }
             case WM_NOTIFY: {
                 auto* nmhdr = reinterpret_cast<NMHDR*>(lParam);
                 if (nmhdr->idFrom == IDC_PREF_SC_LIST && (nmhdr->code == LVN_ITEMCHANGED || nmhdr->code == NM_CLICK)) {
@@ -850,7 +1040,7 @@ LRESULT CALLBACK RXPreferencesDialog::dlgProc(HWND hwnd, UINT msg, WPARAM wParam
                     RECT rcAbout{ 205, 60, rcClient.right - 20, rcClient.bottom - 60 };
                     std::wstring aboutText =
                         L"RX Media Player — Professional Desktop Multimedia Engine\n\n"
-                        L"Version: 2.5.0 (Windows 64-bit)\n"
+                        L"Version: 2.7.0 (Windows 64-bit)\n"
                         L"Lead Architect: Rituraj\n"
                         L"Repository: https://github.com/jcksprwx/RX-Video-Player\n\n"
                         L"Core Capabilities:\n"

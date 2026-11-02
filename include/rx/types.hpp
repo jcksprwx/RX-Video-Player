@@ -7,7 +7,7 @@
 
 namespace rx {
 
-inline constexpr const char* kAppVersion = "2.6.0";
+inline constexpr const char* kAppVersion = "2.7.0";
 inline constexpr const char* kAppAuthor  = "Rituraj";
 inline constexpr const char* kAppName    = "RX Media Player";
 
@@ -30,6 +30,35 @@ enum class AudioChannelMode {
     Both = 0,
     Left = 1,
     Right = 2
+};
+
+enum class AudioOutputMode {
+    Auto = 0,               // Auto (Follow Source / Device)
+    Stereo = 1,             // Stereo (2.0)
+    Mono = 2,               // Mono (1.0)
+    Original = 3            // Original Multichannel Output
+};
+
+struct StereoDownmixConfig {
+    AudioOutputMode outputMode = AudioOutputMode::Auto;
+    double centerMixLevel = 0.707;     // 0.0 to 2.0 (dialogue level, default 0.707 = -3dB)
+    double surroundMixLevel = 0.707;   // 0.0 to 1.5 (surround level, default 0.707 = -3dB)
+    bool includeLfe = false;           // Include LFE subwoofer channel (default false)
+    double lfeMixLevel = 0.5;          // 0.0 to 1.0 (default 0.5 = -6dB)
+    bool normalizeDownmix = true;      // Clipping protection (normalize coefficients)
+    int outputSampleRate = 0;          // 0 = Auto, 44100, 48000, 96000, 192000
+    bool globalSetting = true;         // Persist across sessions
+
+    void reset() {
+        outputMode = AudioOutputMode::Auto;
+        centerMixLevel = 0.707;
+        surroundMixLevel = 0.707;
+        includeLfe = false;
+        lfeMixLevel = 0.5;
+        normalizeDownmix = true;
+        outputSampleRate = 0;
+        globalSetting = true;
+    }
 };
 
 struct MediaTrack {
@@ -66,6 +95,9 @@ struct MediaInfo {
     std::string audioCodec;
     int audioSampleRate = 0;
     int audioChannels = 0;
+    int outAudioChannels = 0;
+    std::string outAudioFormat;
+    int outAudioSampleRate = 0;
     int64_t fileSize = 0;
     std::string hwdecActive = "no";
     std::vector<MediaTrack> tracks;
