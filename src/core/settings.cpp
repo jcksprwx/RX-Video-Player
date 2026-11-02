@@ -130,6 +130,8 @@ void Settings::load(const std::string& path) {
             else if (key == "delayMs") { subtitle.delayMs = std::stod(val); subtitle.style.delaySec = std::stod(val) / 1000.0; }
         } else if (section == "OpenSubtitles") {
             if (key == "apiKey") opensubtitles.apiKey = val;
+            else if (key == "username") opensubtitles.username = val;
+            else if (key == "userToken") opensubtitles.userToken = val;
             else if (key == "preferredLanguages") opensubtitles.preferredLanguages = val;
             else if (key == "autoSearch") opensubtitles.autoSearch = (val == "1" || val == "true");
             else if (key == "applyAfterDownload") opensubtitles.applyAfterDownload = (val == "1" || val == "true");
@@ -226,6 +228,8 @@ void Settings::save(const std::string& path) {
 
     file << "[OpenSubtitles]\n";
     file << "apiKey=" << opensubtitles.apiKey << "\n";
+    file << "username=" << opensubtitles.username << "\n";
+    file << "userToken=" << opensubtitles.userToken << "\n";
     file << "preferredLanguages=" << opensubtitles.preferredLanguages << "\n";
     file << "autoSearch=" << (opensubtitles.autoSearch ? "1" : "0") << "\n";
     file << "applyAfterDownload=" << (opensubtitles.applyAfterDownload ? "1" : "0") << "\n\n";

@@ -370,15 +370,17 @@ void RXOnlineSubtitlesDialog::onSearchClicked() {
 
     if (m_workerThread.joinable()) m_workerThread.join();
 
-    m_workerThread = std::thread([this, apiKey, query, langCode, season, episode, year]() {
+    std::string userToken = Settings::instance().opensubtitles.userToken;
+
+    m_workerThread = std::thread([this, apiKey, userToken, query, langCode, season, episode, year]() {
         std::string err;
         // Search by MovieHash first, if available
         std::vector<subtitles::SubtitleSearchResult> res =
-            subtitles::OpenSubtitlesClient::searchSubtitles(apiKey, query, langCode, m_movieHash, season, episode, year, &err);
+            subtitles::OpenSubtitlesClient::searchSubtitles(apiKey, query, langCode, m_movieHash, season, episode, year, userToken, &err);
 
         // If hash returned empty and query is provided, fallback to title search
         if (res.empty() && !m_movieHash.empty() && !query.empty()) {
-            res = subtitles::OpenSubtitlesClient::searchSubtitles(apiKey, query, langCode, "", season, episode, year, &err);
+            res = subtitles::OpenSubtitlesClient::searchSubtitles(apiKey, query, langCode, "", season, episode, year, userToken, &err);
         }
 
         m_results = std::move(res);
@@ -470,10 +472,13 @@ void RXOnlineSubtitlesDialog::onDownloadClicked(bool applyNow) {
 
     if (m_workerThread.joinable()) m_workerThread.join();
 
-    m_workerThread = std::thread([this, apiKey, item, destPath, applyNow]() {
-        std::string err;
-        bool ok = subtitles::OpenSubtitlesClient::downloadSubtitle(apiKey, item.fileId, destPath.string(), &err);
+    std::string userToken = Settings::instance().opensubtitles.userToken;
 
+    m_workerThread = std::thread([this, apiKey, userToken, item, destPath, applyNow]() {
+        std::string err;
+        bool ok = subtitles::OpenSubtitlesClient::downloadSubtitle(apiKey, item.fileId, destPath.string(), userToken, &err);
+
+        m_lastSearchError = err;
         m_isBusy = false;
         PostMessageW(m_hwnd, WM_APP_DOWNLOAD_COMPLETE, (WPARAM)(ok ? 1 : 0), (LPARAM)(applyNow ? 1 : 0));
 
@@ -565,9 +570,10 @@ LRESULT CALLBACK RXOnlineSubtitlesDialog::dlgProc(HWND hwnd, UINT msg, WPARAM wP
             bool ok = (wParam != 0);
             bool applied = (lParam != 0);
             if (ok) {
-                pThis->updateStatus(applied ? L"Subtitle downloaded and applied to video successfully!" : L"Subtitle downloaded successfully!");
+                pThis->updateStatus(applied ? L"Subtitle downloaded and loaded into playback successfully!" : L"Subtitle downloaded successfully to disk.");
             } else {
-                pThis->updateStatus(L"Subtitle download failed. Please check network and API quota.");
+                std::wstring errStr = pThis->m_lastSearchError.empty() ? L"Please check network and API quota." : rx::utils::utf8ToWide(pThis->m_lastSearchError);
+                pThis->updateStatus(L"Subtitle download failed: " + errStr);
             }
             return 0;
         }

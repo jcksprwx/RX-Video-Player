@@ -52,6 +52,8 @@ struct SubtitleSettings {
 
 struct OpenSubtitlesSettings {
     std::string apiKey = "";
+    std::string username = "";
+    std::string userToken = "";
     std::string preferredLanguages = "en,hi";
     bool autoSearch = true;
     bool applyAfterDownload = true;

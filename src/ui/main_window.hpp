@@ -32,6 +32,7 @@ public:
     bool create(HINSTANCE hInstance, int nCmdShow);
     int runEventLoop();
     void openFile(const std::string& path);
+    void addToPlaylist(const std::string& path);
 
     HWND getHwnd() const { return m_mainHwnd; }
 

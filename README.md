@@ -1,7 +1,7 @@
 # RX Media Player
 
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(64--bit)-0078D6?style=flat-square&logo=windows)](https://microsoft.com/windows)
-[![Version: 2.4.1](https://img.shields.io/badge/Version-2.4.1-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.4.1)
+[![Version: 2.5.0](https://img.shields.io/badge/Version-2.5.0-brightgreen?style=flat-square)](https://github.com/jcksprwx/RX-Video-Player/releases/tag/v2.5.0)
 [![Author: Rituraj](https://img.shields.io/badge/Author-Rituraj-blueviolet?style=flat-square)](https://github.com/jcksprwx)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![C++: 20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=c%2B%2B)](https://en.cppreference.com/w/cpp/20)
@@ -85,13 +85,20 @@ Legacy Windows media players are often cluttered with outdated interfaces, slugg
 - **Scene Bookmarks (`Ctrl+B`):** Save timestamps with custom notes. Press `B` to instantly drop a bookmark during playback. Double-click to jump to any saved bookmark.
 - **Watched Folders & Library Indexing:** Indexes video/audio files from monitored local drives.
 
-### 🎧 Audio Streams, Subtitle Tracks & OpenSubtitles Integration (v2.4.1)
+### 🎧 Audio Streams, Subtitle Tracks & OpenSubtitles Integration (v2.5.0)
 - **Compact Custom Dark Menus:** Windows-style popup menus styled with dark charcoal `#414141`, `#191919` hover highlight, `#D0D0D0` text, and bright yellow `#FFFF00` selected-track text with blue circular radio indicators.
 - **Deep Technical Track Details:** Full display of audio and subtitle stream technical descriptors: `Language, Track Title [Codec] (Audio N) — Codec, Sample Rate, Channels, Bitrate` (e.g. `Hindi, Main Audio [DDP 5.1] (Audio 3) — Dolby Digital Plus, 48.0 kHz, 5.1 Ch, 192 kbit/s`).
 - **Immediate Seamless Track Switching:** Switch audio and subtitle streams instantly without video interruption or player re-buffering.
 - **Dedicated Audio Channel Routing:** Switch instantly between `Both`, `Left channel`, and `Right channel` modes with matching OSD notifications.
-- **OpenSubtitles.com REST API v1 Integration:** Native Windows WinHTTP client calculating standard 64-bit MovieHash checksums and regex title parsing to search and download SRT/VTT subtitles online directly into playback.
+- **OpenSubtitles.com REST API v1 Client:** High-speed WinHTTP REST client with gzip decompression, 64-bit MovieHash generation, regex title parsing, and user authentication (login/logout, token caching, daily VIP download quota display).
 - **Interactive Codec Badges & Responsive Toolbar:** Dynamic text extent measuring for stream codec badges `[H.265]`, `[AAC]`, and `[2.0]` ensuring all labels remain fully visible across standard resolutions (1280x720, 1366x768, 1920x1080). Clicking badges triggers detailed OSD diagnostic telemetry.
+
+### 🪟 Windows "Open With" Integration & Single-Instance IPC (v2.5.0)
+- **Seamless Explorer Context Menu Integration:** Full registration in Windows Explorer right-click → "Open with" and Default Apps for 20 common multimedia containers:
+  - **Video Formats (12):** `.mkv`, `.mp4`, `.avi`, `.mov`, `.wmv`, `.webm`, `.m4v`, `.mpeg`, `.mpg`, `.ts`, `.m2ts`, `.flv`
+  - **Audio Formats (8):** `.mp3`, `.wav`, `.flac`, `.aac`, `.m4a`, `.ogg`, `.opus`, `.wma`
+- **In-App Registration & Repair:** Dedicated "Register in Windows 'Open with' Menu" and "Repair File Associations" actions inside **Preferences (`F5`) → General**, alongside CLI self-healing flags (`--register`, `/register`, `--repair`, `/repair`).
+- **Single-Instance IPC Forwarding:** When opening files via Windows Explorer while RX Media Player is already running, the new process forwards the file paths via `WM_COPYDATA` (magic ID `0x5258504C`) to the existing window, automatically appending multi-selected files into the active playlist and restoring focus without spawning duplicate processes.
 
 ---
 
@@ -214,8 +221,11 @@ RX-Video-Player/
 │   │   ├── equalizer.hpp/.cpp  # 10-band ISO equalizer & filter generator
 │   │   └── wasapi_enumerator.hpp/.cpp # IMMDeviceEnumerator Core Audio queries
 │   ├── core/
+│   │   ├── association_manager.hpp/.cpp # Windows "Open with" registry & shell integration
 │   │   ├── logger.hpp/.cpp     # Thread-safe log writer
 │   │   ├── settings.hpp/.cpp   # INI settings parser and serializer
+│   │   ├── shortcut_manager.hpp/.cpp # Keyboard shortcut configuration & dispatch
+│   │   ├── track_formatter.hpp/.cpp  # Formats audio/subtitle descriptors & OSD
 │   │   └── utils.hpp/.cpp      # Time/byte formatters, UTF-8/Wide conversion
 │   ├── engine/
 │   │   ├── mpv_backend.hpp/.cpp # Asynchronous libmpv Direct3D 11 wrapper

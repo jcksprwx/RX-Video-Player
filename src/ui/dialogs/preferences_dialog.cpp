@@ -1,7 +1,10 @@
 #include "preferences_dialog.hpp"
 #include "../../core/utils.hpp"
+#include "../../core/association_manager.hpp"
+#include "../../subtitles/opensubtitles_client.hpp"
 #include <commctrl.h>
 #include <algorithm>
+#include <thread>
 
 namespace rx::ui {
 
@@ -25,6 +28,18 @@ constexpr UINT IDC_PREF_SC_CAPTURE    = 4012;
 constexpr UINT IDC_PREF_SC_ASSIGN     = 4013;
 constexpr UINT IDC_PREF_SC_CLEAR      = 4014;
 constexpr UINT IDC_PREF_SC_RESET      = 4015;
+
+// Associations and OpenSubtitles IDs
+constexpr UINT IDC_PREF_REG_ASSOC      = 4020;
+constexpr UINT IDC_PREF_OS_APIKEY      = 4021;
+constexpr UINT IDC_PREF_OS_USER        = 4022;
+constexpr UINT IDC_PREF_OS_PASS        = 4023;
+constexpr UINT IDC_PREF_OS_TEST        = 4024;
+constexpr UINT IDC_PREF_OS_LOGIN       = 4025;
+constexpr UINT IDC_PREF_OS_LOGOUT      = 4026;
+constexpr UINT IDC_PREF_OS_LANGS       = 4027;
+constexpr UINT IDC_PREF_OS_AUTOSEARCH  = 4028;
+constexpr UINT IDC_PREF_OS_AUTOAPPLY   = 4029;
 
 RXPreferencesDialog::RXPreferencesDialog() = default;
 
@@ -159,75 +174,162 @@ void RXPreferencesDialog::onInitDialog() {
     m_listCategories = CreateWindowExW(
         0, L"LISTBOX", L"",
         WS_CHILD | WS_VISIBLE | LBS_NOTIFY | LBS_NOINTEGRALHEIGHT | WS_BORDER,
-        15, 15, 165, 470,
+        15, 15, 175, 470,
         m_hwnd, (HMENU)(INT_PTR)IDC_PREF_CATEGORIES, hInst, nullptr
     );
     SendMessageW(m_listCategories, WM_SETFONT, (WPARAM)m_font, TRUE);
 
-    SendMessageW(m_listCategories, LB_ADDSTRING, 0, (LPARAM)L"  ⚙  General");
+    SendMessageW(m_listCategories, LB_ADDSTRING, 0, (LPARAM)L"  ⚙  General & Associations");
     SendMessageW(m_listCategories, LB_ADDSTRING, 0, (LPARAM)L"  ▶  Playback & Resume");
     SendMessageW(m_listCategories, LB_ADDSTRING, 0, (LPARAM)L"  🎨  Video & D3D11");
     SendMessageW(m_listCategories, LB_ADDSTRING, 0, (LPARAM)L"  🔊  Audio & WASAPI");
     SendMessageW(m_listCategories, LB_ADDSTRING, 0, (LPARAM)L"  💬  Subtitles");
+    SendMessageW(m_listCategories, LB_ADDSTRING, 0, (LPARAM)L"  🌐  OpenSubtitles API");
     SendMessageW(m_listCategories, LB_ADDSTRING, 0, (LPARAM)L"  ⌨  Keyboard Shortcuts");
     SendMessageW(m_listCategories, LB_ADDSTRING, 0, (LPARAM)L"  ℹ  About RX Player");
     SendMessageW(m_listCategories, LB_SETCURSEL, 0, 0);
 
-    // 2. Setting controls on right panel (x = 200, y = 55, w = 540)
+    // 2. Playback / Core settings (Category 1)
     m_chkAutoPlayNext = CreateWindowExW(
         0, L"BUTTON", L"Automatically play next file in playlist",
-        WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-        200, 60, 520, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_AUTONEXT, hInst, nullptr
+        WS_CHILD | BS_AUTOCHECKBOX,
+        205, 60, 520, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_AUTONEXT, hInst, nullptr
     );
     SendMessageW(m_chkAutoPlayNext, WM_SETFONT, (WPARAM)m_font, TRUE);
     SendMessageW(m_chkAutoPlayNext, BM_SETCHECK, s.playback.autoPlayNext ? BST_CHECKED : BST_UNCHECKED, 0);
 
     m_chkRememberPos = CreateWindowExW(
         0, L"BUTTON", L"Remember and resume playback position for each media file (SQLite)",
-        WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-        200, 95, 520, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_REMEMBERPOS, hInst, nullptr
+        WS_CHILD | BS_AUTOCHECKBOX,
+        205, 95, 520, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_REMEMBERPOS, hInst, nullptr
     );
     SendMessageW(m_chkRememberPos, WM_SETFONT, (WPARAM)m_font, TRUE);
     SendMessageW(m_chkRememberPos, BM_SETCHECK, s.playback.rememberPosition ? BST_CHECKED : BST_UNCHECKED, 0);
 
     m_chkHwdec = CreateWindowExW(
         0, L"BUTTON", L"Enable Direct3D 11 hardware video decoding (D3D11VA)",
-        WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-        200, 130, 520, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_HWDEC, hInst, nullptr
+        WS_CHILD | BS_AUTOCHECKBOX,
+        205, 60, 520, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_HWDEC, hInst, nullptr
     );
     SendMessageW(m_chkHwdec, WM_SETFONT, (WPARAM)m_font, TRUE);
     SendMessageW(m_chkHwdec, BM_SETCHECK, s.video.hwdecEnabled ? BST_CHECKED : BST_UNCHECKED, 0);
 
     m_chkWASAPIExclusive = CreateWindowExW(
         0, L"BUTTON", L"Enable WASAPI Exclusive Mode for bit-perfect audio output",
-        WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-        200, 165, 520, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_EXCLUSIVE, hInst, nullptr
+        WS_CHILD | BS_AUTOCHECKBOX,
+        205, 60, 520, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_EXCLUSIVE, hInst, nullptr
     );
     SendMessageW(m_chkWASAPIExclusive, WM_SETFONT, (WPARAM)m_font, TRUE);
     SendMessageW(m_chkWASAPIExclusive, BM_SETCHECK, s.audio.exclusiveMode ? BST_CHECKED : BST_UNCHECKED, 0);
 
     m_chkAutoLoadSubs = CreateWindowExW(
         0, L"BUTTON", L"Auto-detect and load companion subtitle files (.srt, .ass, .vtt)",
-        WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-        200, 200, 520, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_AUTOSUBS, hInst, nullptr
+        WS_CHILD | BS_AUTOCHECKBOX,
+        205, 60, 520, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_AUTOSUBS, hInst, nullptr
     );
     SendMessageW(m_chkAutoLoadSubs, WM_SETFONT, (WPARAM)m_font, TRUE);
     SendMessageW(m_chkAutoLoadSubs, BM_SETCHECK, s.subtitle.autoLoad ? BST_CHECKED : BST_UNCHECKED, 0);
 
-    // 3. Shortcuts Manager Controls (Category 5)
+    // 3. Category 0: General & Windows Associations Controls
+    bool isAssocReg = AssociationManager::isRegistered(true);
+    std::wstring assocTxt = isAssocReg ?
+        L"Status: Registered in Windows 'Open with' for 20 formats." :
+        L"Status: Not yet registered in Windows 'Open with' menu.";
+
+    m_lblAssocStatus = CreateWindowExW(
+        0, L"STATIC", assocTxt.c_str(),
+        WS_CHILD | WS_VISIBLE,
+        205, 60, 530, 40, m_hwnd, nullptr, hInst, nullptr
+    );
+    SendMessageW(m_lblAssocStatus, WM_SETFONT, (WPARAM)m_font, TRUE);
+
+    m_btnRegisterAssoc = CreateWindowExW(
+        0, L"BUTTON", L"Register / Repair Windows 'Open with' & File Associations",
+        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+        205, 110, 390, 32, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_REG_ASSOC, hInst, nullptr
+    );
+    SendMessageW(m_btnRegisterAssoc, WM_SETFONT, (WPARAM)m_boldFont, TRUE);
+
+    // 4. Category 5: OpenSubtitles REST API Controls
+    m_lblOsApiKey = CreateWindowExW(0, L"STATIC", L"API Key (Free):", WS_CHILD,
+                                   205, 60, 110, 20, m_hwnd, nullptr, hInst, nullptr);
+    SendMessageW(m_lblOsApiKey, WM_SETFONT, (WPARAM)m_boldFont, TRUE);
+
+    m_editOsApiKey = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", rx::utils::utf8ToWide(s.opensubtitles.apiKey).c_str(),
+                                    WS_CHILD | ES_AUTOHSCROLL,
+                                    325, 57, 330, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_OS_APIKEY, hInst, nullptr);
+    SendMessageW(m_editOsApiKey, WM_SETFONT, (WPARAM)m_font, TRUE);
+
+    m_lblOsUsername = CreateWindowExW(0, L"STATIC", L"Username (Optional):", WS_CHILD,
+                                     205, 95, 115, 20, m_hwnd, nullptr, hInst, nullptr);
+    SendMessageW(m_lblOsUsername, WM_SETFONT, (WPARAM)m_font, TRUE);
+
+    m_editOsUsername = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", rx::utils::utf8ToWide(s.opensubtitles.username).c_str(),
+                                      WS_CHILD | ES_AUTOHSCROLL,
+                                      325, 92, 190, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_OS_USER, hInst, nullptr);
+    SendMessageW(m_editOsUsername, WM_SETFONT, (WPARAM)m_font, TRUE);
+
+    m_lblOsPassword = CreateWindowExW(0, L"STATIC", L"Password (Optional):", WS_CHILD,
+                                     205, 130, 115, 20, m_hwnd, nullptr, hInst, nullptr);
+    SendMessageW(m_lblOsPassword, WM_SETFONT, (WPARAM)m_font, TRUE);
+
+    m_editOsPassword = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
+                                      WS_CHILD | ES_AUTOHSCROLL | ES_PASSWORD,
+                                      325, 127, 190, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_OS_PASS, hInst, nullptr);
+    SendMessageW(m_editOsPassword, WM_SETFONT, (WPARAM)m_font, TRUE);
+
+    m_btnOsLogin = CreateWindowExW(0, L"BUTTON", L"Log In", WS_CHILD | BS_PUSHBUTTON,
+                                  525, 125, 75, 28, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_OS_LOGIN, hInst, nullptr);
+    SendMessageW(m_btnOsLogin, WM_SETFONT, (WPARAM)m_font, TRUE);
+
+    m_btnOsLogout = CreateWindowExW(0, L"BUTTON", L"Log Out", WS_CHILD | BS_PUSHBUTTON,
+                                   605, 125, 75, 28, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_OS_LOGOUT, hInst, nullptr);
+    SendMessageW(m_btnOsLogout, WM_SETFONT, (WPARAM)m_font, TRUE);
+
+    m_btnOsTest = CreateWindowExW(0, L"BUTTON", L"Test Connection", WS_CHILD | BS_PUSHBUTTON,
+                                 325, 162, 140, 28, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_OS_TEST, hInst, nullptr);
+    SendMessageW(m_btnOsTest, WM_SETFONT, (WPARAM)m_boldFont, TRUE);
+
+    m_lblOsStatus = CreateWindowExW(0, L"STATIC", L"", WS_CHILD,
+                                   205, 200, 530, 36, m_hwnd, nullptr, hInst, nullptr);
+    SendMessageW(m_lblOsStatus, WM_SETFONT, (WPARAM)m_font, TRUE);
+    updateOsStatusDisplay();
+
+    m_lblOsLangs = CreateWindowExW(0, L"STATIC", L"Languages (comma-separated, e.g. en,hi,bn,te,ta,ml):", WS_CHILD,
+                                  205, 245, 530, 20, m_hwnd, nullptr, hInst, nullptr);
+    SendMessageW(m_lblOsLangs, WM_SETFONT, (WPARAM)m_font, TRUE);
+
+    m_editOsLangs = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", rx::utils::utf8ToWide(s.opensubtitles.preferredLanguages).c_str(),
+                                   WS_CHILD | ES_AUTOHSCROLL,
+                                   205, 270, 280, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_OS_LANGS, hInst, nullptr);
+    SendMessageW(m_editOsLangs, WM_SETFONT, (WPARAM)m_font, TRUE);
+
+    m_chkOsAutoSearch = CreateWindowExW(0, L"BUTTON", L"Auto-search subtitles on playback start",
+                                       WS_CHILD | BS_AUTOCHECKBOX,
+                                       205, 305, 520, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_OS_AUTOSEARCH, hInst, nullptr);
+    SendMessageW(m_chkOsAutoSearch, WM_SETFONT, (WPARAM)m_font, TRUE);
+    SendMessageW(m_chkOsAutoSearch, BM_SETCHECK, s.opensubtitles.autoSearch ? BST_CHECKED : BST_UNCHECKED, 0);
+
+    m_chkOsAutoApply = CreateWindowExW(0, L"BUTTON", L"Automatically apply downloaded subtitles to video",
+                                      WS_CHILD | BS_AUTOCHECKBOX,
+                                      205, 335, 520, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_OS_AUTOAPPLY, hInst, nullptr);
+    SendMessageW(m_chkOsAutoApply, WM_SETFONT, (WPARAM)m_font, TRUE);
+    SendMessageW(m_chkOsAutoApply, BM_SETCHECK, s.opensubtitles.applyAfterDownload ? BST_CHECKED : BST_UNCHECKED, 0);
+
+    // 5. Shortcuts Manager Controls (Category 6)
     m_lblSearch = CreateWindowExW(0, L"STATIC", L"Search Shortcuts:", WS_CHILD,
-                                  200, 55, 110, 20, m_hwnd, nullptr, hInst, nullptr);
+                                  205, 55, 110, 20, m_hwnd, nullptr, hInst, nullptr);
     SendMessageW(m_lblSearch, WM_SETFONT, (WPARAM)m_boldFont, TRUE);
 
     m_editShortcutSearch = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
                                            WS_CHILD | ES_AUTOHSCROLL,
-                                           320, 52, 240, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_SC_SEARCH, hInst, nullptr);
+                                           325, 52, 240, 24, m_hwnd, (HMENU)(INT_PTR)IDC_PREF_SC_SEARCH, hInst, nullptr);
     SendMessageW(m_editShortcutSearch, WM_SETFONT, (WPARAM)m_font, TRUE);
 
     m_listShortcutKeys = CreateWindowExW(
         WS_EX_CLIENTEDGE, WC_LISTVIEWW, L"",
         WS_CHILD | WS_VSCROLL | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS,
-        200, 84, 550, 280,
+        205, 84, 545, 280,
         m_hwnd, (HMENU)(INT_PTR)IDC_PREF_SC_LIST, hInst, nullptr
     );
     SendMessageW(m_listShortcutKeys, WM_SETFONT, (WPARAM)m_font, TRUE);
@@ -248,7 +350,7 @@ void RXPreferencesDialog::onInitDialog() {
     ListView_InsertColumn(m_listShortcutKeys, 2, &lvc);
 
     m_lblCapture = CreateWindowExW(0, L"STATIC", L"Press Key Combination:", WS_CHILD,
-                                   200, 376, 150, 20, m_hwnd, nullptr, hInst, nullptr);
+                                   205, 376, 150, 20, m_hwnd, nullptr, hInst, nullptr);
     SendMessageW(m_lblCapture, WM_SETFONT, (WPARAM)m_boldFont, TRUE);
 
     m_editKeyCapture = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"Click here & press keys...",
@@ -270,10 +372,10 @@ void RXPreferencesDialog::onInitDialog() {
     SendMessageW(m_btnResetShortcuts, WM_SETFONT, (WPARAM)m_font, TRUE);
 
     m_lblConflict = CreateWindowExW(0, L"STATIC", L"", WS_CHILD,
-                                    200, 412, 350, 20, m_hwnd, nullptr, hInst, nullptr);
+                                    205, 412, 350, 20, m_hwnd, nullptr, hInst, nullptr);
     SendMessageW(m_lblConflict, WM_SETFONT, (WPARAM)m_font, TRUE);
 
-    // 4. Bottom Action Buttons
+    // 6. Bottom Action Buttons
     m_btnSave = CreateWindowExW(
         0, L"BUTTON", L"Save & Apply",
         WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
@@ -306,27 +408,48 @@ void RXPreferencesDialog::onCategoryChanged(int categoryIndex) {
 }
 
 void RXPreferencesDialog::updateCategoryPanels(int categoryIndex) {
+    bool showGen = (categoryIndex == 0);
     bool showPlay = (categoryIndex == 1);
     bool showVid = (categoryIndex == 2);
     bool showAud = (categoryIndex == 3);
     bool showSub = (categoryIndex == 4);
-    bool showShortcuts = (categoryIndex == 5);
+    bool showOpenSub = (categoryIndex == 5);
+    bool showShortcuts = (categoryIndex == 6);
 
-    if (categoryIndex == 0) {
-        ShowWindow(m_chkAutoPlayNext, SW_SHOW);
-        ShowWindow(m_chkRememberPos, SW_SHOW);
-        ShowWindow(m_chkHwdec, SW_SHOW);
-        ShowWindow(m_chkWASAPIExclusive, SW_SHOW);
-        ShowWindow(m_chkAutoLoadSubs, SW_SHOW);
-    } else {
-        ShowWindow(m_chkAutoPlayNext, showPlay ? SW_SHOW : SW_HIDE);
-        ShowWindow(m_chkRememberPos, showPlay ? SW_SHOW : SW_HIDE);
-        ShowWindow(m_chkHwdec, showVid ? SW_SHOW : SW_HIDE);
-        ShowWindow(m_chkWASAPIExclusive, showAud ? SW_SHOW : SW_HIDE);
-        ShowWindow(m_chkAutoLoadSubs, showSub ? SW_SHOW : SW_HIDE);
-    }
+    // General & Associations (0)
+    ShowWindow(m_lblAssocStatus, showGen ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_btnRegisterAssoc, showGen ? SW_SHOW : SW_HIDE);
 
-    // Shortcuts controls
+    // Playback & Resume (1)
+    ShowWindow(m_chkAutoPlayNext, showPlay ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_chkRememberPos, showPlay ? SW_SHOW : SW_HIDE);
+
+    // Video (2)
+    ShowWindow(m_chkHwdec, showVid ? SW_SHOW : SW_HIDE);
+
+    // Audio (3)
+    ShowWindow(m_chkWASAPIExclusive, showAud ? SW_SHOW : SW_HIDE);
+
+    // Subtitles (4)
+    ShowWindow(m_chkAutoLoadSubs, showSub ? SW_SHOW : SW_HIDE);
+
+    // OpenSubtitles API (5)
+    ShowWindow(m_lblOsApiKey, showOpenSub ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_editOsApiKey, showOpenSub ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_lblOsUsername, showOpenSub ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_editOsUsername, showOpenSub ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_lblOsPassword, showOpenSub ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_editOsPassword, showOpenSub ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_btnOsTest, showOpenSub ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_btnOsLogin, showOpenSub ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_btnOsLogout, showOpenSub ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_lblOsStatus, showOpenSub ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_lblOsLangs, showOpenSub ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_editOsLangs, showOpenSub ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_chkOsAutoSearch, showOpenSub ? SW_SHOW : SW_HIDE);
+    ShowWindow(m_chkOsAutoApply, showOpenSub ? SW_SHOW : SW_HIDE);
+
+    // Shortcuts (6)
     ShowWindow(m_lblSearch, showShortcuts ? SW_SHOW : SW_HIDE);
     ShowWindow(m_editShortcutSearch, showShortcuts ? SW_SHOW : SW_HIDE);
     ShowWindow(m_listShortcutKeys, showShortcuts ? SW_SHOW : SW_HIDE);
@@ -340,6 +463,132 @@ void RXPreferencesDialog::updateCategoryPanels(int categoryIndex) {
     if (showShortcuts) {
         refreshShortcutsList();
     }
+}
+
+void RXPreferencesDialog::onRegisterAssociations() {
+    bool ok = AssociationManager::registerFileAssociations(true);
+    if (ok) {
+        SetWindowTextW(m_lblAssocStatus, L"Status: Registered for 20 video & audio formats in Windows 'Open with'!");
+        MessageBoxW(m_hwnd,
+            L"RX Media Player has been registered in Windows 'Open with' and Default Apps for all supported video and audio formats.\n\n"
+            L"Formats: .mkv, .mp4, .avi, .mov, .wmv, .webm, .m4v, .mpeg, .mpg, .ts, .m2ts, .flv, .mp3, .wav, .flac, .aac, .m4a, .ogg, .opus, .wma",
+            L"Windows Integration Successful",
+            MB_ICONINFORMATION | MB_OK);
+    } else {
+        SetWindowTextW(m_lblAssocStatus, L"Status: Registration failed. Please run with user write permissions.");
+    }
+}
+
+void RXPreferencesDialog::updateOsStatusDisplay() {
+    auto& s = Settings::instance();
+    if (!s.opensubtitles.userToken.empty()) {
+        std::wstring msg = L"Status: Logged in as '" + rx::utils::utf8ToWide(s.opensubtitles.username) + L"'. Session token active.";
+        SetWindowTextW(m_lblOsStatus, msg.c_str());
+    } else if (!s.opensubtitles.apiKey.empty()) {
+        SetWindowTextW(m_lblOsStatus, L"Status: API Key configured. Click 'Test Connection' to verify server connectivity.");
+    } else {
+        SetWindowTextW(m_lblOsStatus, L"Status: Not Configured. Enter your free OpenSubtitles.com API key above.");
+    }
+}
+
+void RXPreferencesDialog::onTestOpenSubtitlesConnection() {
+    wchar_t bufKey[256] = {0};
+    GetWindowTextW(m_editOsApiKey, bufKey, 256);
+    std::string apiKey = rx::utils::wideToUtf8(bufKey);
+
+    if (apiKey.empty()) {
+        SetWindowTextW(m_lblOsStatus, L"Error: API Key is required. Register at opensubtitles.com/consumers");
+        return;
+    }
+
+    SetWindowTextW(m_lblOsStatus, L"Testing connection to https://api.opensubtitles.com/api/v1...");
+    EnableWindow(m_btnOsTest, FALSE);
+
+    std::string userToken = Settings::instance().opensubtitles.userToken;
+
+    std::thread([this, apiKey, userToken]() {
+        subtitles::UserAccountInfo info;
+        std::string err;
+        bool ok = subtitles::OpenSubtitlesClient::testConnection(apiKey, userToken, &info, &err);
+
+        std::wstring statusStr;
+        if (ok) {
+            statusStr = L"Success: " + rx::utils::utf8ToWide(info.statusMessage);
+        } else {
+            statusStr = L"Error: " + rx::utils::utf8ToWide(err);
+        }
+
+        SendMessageW(m_lblOsStatus, WM_SETTEXT, 0, (LPARAM)statusStr.c_str());
+        EnableWindow(m_btnOsTest, TRUE);
+    }).detach();
+}
+
+void RXPreferencesDialog::onOpenSubtitlesLogin() {
+    wchar_t bufKey[256] = {0};
+    GetWindowTextW(m_editOsApiKey, bufKey, 256);
+    std::string apiKey = rx::utils::wideToUtf8(bufKey);
+
+    wchar_t bufUser[128] = {0};
+    GetWindowTextW(m_editOsUsername, bufUser, 128);
+    std::string user = rx::utils::wideToUtf8(bufUser);
+
+    wchar_t bufPass[128] = {0};
+    GetWindowTextW(m_editOsPassword, bufPass, 128);
+    std::string pass = rx::utils::wideToUtf8(bufPass);
+
+    if (apiKey.empty()) {
+        SetWindowTextW(m_lblOsStatus, L"Error: OpenSubtitles API Key is required.");
+        return;
+    }
+    if (user.empty() || pass.empty()) {
+        SetWindowTextW(m_lblOsStatus, L"Error: Username and password are required.");
+        return;
+    }
+
+    SetWindowTextW(m_lblOsStatus, L"Authenticating with OpenSubtitles.com...");
+    EnableWindow(m_btnOsLogin, FALSE);
+
+    std::thread([this, apiKey, user, pass]() {
+        subtitles::UserAccountInfo info;
+        std::string err;
+        bool ok = subtitles::OpenSubtitlesClient::login(apiKey, user, pass, &info, &err);
+
+        if (ok) {
+            auto& s = Settings::instance();
+            s.opensubtitles.apiKey = apiKey;
+            s.opensubtitles.username = user;
+            s.opensubtitles.userToken = info.token;
+            s.save();
+
+            std::wstring msg = L"Login Successful! " + rx::utils::utf8ToWide(info.statusMessage);
+            SendMessageW(m_lblOsStatus, WM_SETTEXT, 0, (LPARAM)msg.c_str());
+        } else {
+            std::wstring msg = L"Login Failed: " + rx::utils::utf8ToWide(err);
+            SendMessageW(m_lblOsStatus, WM_SETTEXT, 0, (LPARAM)msg.c_str());
+        }
+        EnableWindow(m_btnOsLogin, TRUE);
+    }).detach();
+}
+
+void RXPreferencesDialog::onOpenSubtitlesLogout() {
+    auto& s = Settings::instance();
+    std::string apiKey = s.opensubtitles.apiKey;
+    std::string userToken = s.opensubtitles.userToken;
+
+    if (!userToken.empty()) {
+        std::thread([apiKey, userToken]() {
+            std::string err;
+            subtitles::OpenSubtitlesClient::logout(apiKey, userToken, &err);
+        }).detach();
+    }
+
+    s.opensubtitles.userToken.clear();
+    s.opensubtitles.username.clear();
+    s.save();
+
+    SetWindowTextW(m_editOsUsername, L"");
+    SetWindowTextW(m_editOsPassword, L"");
+    SetWindowTextW(m_lblOsStatus, L"Logged out. Currently using anonymous API key.");
 }
 
 void RXPreferencesDialog::onShortcutSearch() {
@@ -452,6 +701,21 @@ void RXPreferencesDialog::saveAndApply() {
     s.audio.exclusiveMode = (SendMessageW(m_chkWASAPIExclusive, BM_GETCHECK, 0, 0) == BST_CHECKED);
     s.subtitle.autoLoad = (SendMessageW(m_chkAutoLoadSubs, BM_GETCHECK, 0, 0) == BST_CHECKED);
 
+    wchar_t bufKey[256] = {0};
+    GetWindowTextW(m_editOsApiKey, bufKey, 256);
+    s.opensubtitles.apiKey = rx::utils::wideToUtf8(bufKey);
+
+    wchar_t bufUser[128] = {0};
+    GetWindowTextW(m_editOsUsername, bufUser, 128);
+    s.opensubtitles.username = rx::utils::wideToUtf8(bufUser);
+
+    wchar_t bufLangs[128] = {0};
+    GetWindowTextW(m_editOsLangs, bufLangs, 128);
+    s.opensubtitles.preferredLanguages = rx::utils::wideToUtf8(bufLangs);
+
+    s.opensubtitles.autoSearch = (SendMessageW(m_chkOsAutoSearch, BM_GETCHECK, 0, 0) == BST_CHECKED);
+    s.opensubtitles.applyAfterDownload = (SendMessageW(m_chkOsAutoApply, BM_GETCHECK, 0, 0) == BST_CHECKED);
+
     s.save();
     MessageBoxW(m_hwnd, L"Preferences & keyboard shortcuts saved successfully!", L"Preferences", MB_ICONINFORMATION | MB_OK);
     close();
@@ -504,6 +768,14 @@ LRESULT CALLBACK RXPreferencesDialog::dlgProc(HWND hwnd, UINT msg, WPARAM wParam
                 if (id == IDC_PREF_CATEGORIES && code == LBN_SELCHANGE) {
                     int sel = static_cast<int>(SendMessageW(pThis->m_listCategories, LB_GETCURSEL, 0, 0));
                     pThis->onCategoryChanged(sel);
+                } else if (id == IDC_PREF_REG_ASSOC) {
+                    pThis->onRegisterAssociations();
+                } else if (id == IDC_PREF_OS_TEST) {
+                    pThis->onTestOpenSubtitlesConnection();
+                } else if (id == IDC_PREF_OS_LOGIN) {
+                    pThis->onOpenSubtitlesLogin();
+                } else if (id == IDC_PREF_OS_LOGOUT) {
+                    pThis->onOpenSubtitlesLogout();
                 } else if (id == IDC_PREF_SC_SEARCH && code == EN_CHANGE) {
                     pThis->onShortcutSearch();
                 } else if (id == IDC_PREF_SC_ASSIGN) {
@@ -528,58 +800,55 @@ LRESULT CALLBACK RXPreferencesDialog::dlgProc(HWND hwnd, UINT msg, WPARAM wParam
                 RECT rcClient;
                 GetClientRect(hwnd, &rcClient);
 
-                // Right panel header area
-                RECT rcHeader{ 200, 15, rcClient.right - 15, 45 };
+                RECT rcHeader{ 205, 15, rcClient.right - 15, 45 };
                 SetBkMode(hdc, TRANSPARENT);
                 SetTextColor(hdc, theme::kTextPrimary);
                 HFONT oldFont = (HFONT)SelectObject(hdc, pThis->m_titleFont);
 
                 const wchar_t* titles[] = {
-                    L"General Application Settings",
+                    L"General Application & Windows Associations",
                     L"Playback & Position Resume",
                     L"Video Acceleration & D3D11 Engine",
                     L"Audio Architecture & WASAPI",
                     L"Subtitle Rendering & Sync",
+                    L"OpenSubtitles.com REST API v1",
                     L"Keyboard Shortcuts & Key Mappings",
                     L"About RX Media Player"
                 };
 
                 int cat = pThis->m_currentCategory;
-                if (cat >= 0 && cat < 7) {
+                if (cat >= 0 && cat < 8) {
                     DrawTextW(hdc, titles[cat], -1, &rcHeader, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
                 }
 
-                // If on About category (cat == 6), draw rich about details
-                if (cat == 6) {
+                if (cat == 7) {
                     SelectObject(hdc, pThis->m_font);
                     SetTextColor(hdc, theme::kTextMuted);
 
-                    RECT rcAbout{ 200, 60, rcClient.right - 20, rcClient.bottom - 60 };
+                    RECT rcAbout{ 205, 60, rcClient.right - 20, rcClient.bottom - 60 };
                     std::wstring aboutText =
                         L"RX Media Player — Professional Desktop Multimedia Engine\n\n"
-                        L"Version: 2.3.0 (Windows 64-bit)\n"
-                        L"Author & Lead Architect: Rituraj\n"
+                        L"Version: 2.5.0 (Windows 64-bit)\n"
+                        L"Lead Architect: Rituraj\n"
                         L"Repository: https://github.com/jcksprwx/RX-Video-Player\n\n"
-                        L"Core Architecture:\n"
-                        L"  • Language: C++20 Standard\n"
-                        L"  • Rendering: Direct3D 11 / D3D11VA Hardware Acceleration\n"
-                        L"  • Audio: Direct Windows Audio Session API (WASAPI) with 10-Band EQ\n"
-                        L"  • Shortcuts: Configurable Centralized Shortcut Dispatcher & OSD Engine\n"
-                        L"  • Multimedia Engine: libmpv & FFmpeg Backends\n"
-                        L"  • Metadata & History: Embedded SQLite 3 Database\n\n"
-                        L"Designed and developed with pride for Windows 10 & 11.\n"
-                        L"Copyright (c) 2026 Rituraj. All rights reserved.";
+                        L"Core Capabilities:\n"
+                        L"  • Windows File Associations & 'Open with' Explorer Integration\n"
+                        L"  • Single-Instance Process Model with Real-Time IPC (WM_COPYDATA)\n"
+                        L"  • Direct3D 11 GPU Presentation & Hardware Video Decoding\n"
+                        L"  • Direct WASAPI Low-Latency Audio with 10-Band Graphic Equalizer\n"
+                        L"  • OpenSubtitles.com REST API v1 Client with Account Authentication\n"
+                        L"  • Embedded SQLite 3 Media Library with Automatic Position Resume\n\n"
+                        L"Designed and engineered for Windows 10 & 11.\n"
+                        L"Copyright (c) 2026 RX Media Player. All rights reserved.";
 
                     DrawTextW(hdc, aboutText.c_str(), -1, &rcAbout, DT_LEFT | DT_TOP);
                 }
 
-                // Vertical separator line between sidebar and content
                 HPEN borderPen = CreatePen(PS_SOLID, 1, theme::kBorderColor);
                 HPEN oldPen = (HPEN)SelectObject(hdc, borderPen);
-                MoveToEx(hdc, 190, 15, nullptr);
-                LineTo(hdc, 190, rcClient.bottom - 60);
+                MoveToEx(hdc, 195, 15, nullptr);
+                LineTo(hdc, 195, rcClient.bottom - 60);
 
-                // Horizontal separator above action buttons
                 MoveToEx(hdc, 15, rcClient.bottom - 55, nullptr);
                 LineTo(hdc, rcClient.right - 15, rcClient.bottom - 55);
 

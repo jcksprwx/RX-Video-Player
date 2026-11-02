@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(RXMediaPlayer
-    VERSION 2.4.1
+    VERSION 2.5.0
     DESCRIPTION "RX Media Player - Native Windows 64-bit Multimedia Player"
     LANGUAGES C CXX
 )
@@ -31,6 +31,7 @@ set(RX_CORE_SOURCES
     src/core/utils.cpp
     src/core/track_formatter.cpp
     src/core/shortcut_manager.cpp
+    src/core/association_manager.cpp
     src/subtitles/opensubtitles_client.cpp
     src/engine/mpv_backend.cpp
     src/playlist/playlist_manager.cpp

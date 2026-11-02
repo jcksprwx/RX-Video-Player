@@ -5,6 +5,7 @@
 #include "../src/library/media_database.hpp"
 #include "../src/core/shortcut_manager.hpp"
 #include "../src/core/track_formatter.hpp"
+#include "../src/core/association_manager.hpp"
 #include "../src/subtitles/opensubtitles_client.hpp"
 #include <iostream>
 #include <cassert>
@@ -550,6 +551,70 @@ void testAudioTracksAndOpenSubtitles() {
     std::cout << "  -> testAudioTracksAndOpenSubtitles PASSED!" << std::endl;
 }
 
+void testWindowsAssociationsAndOpenSubtitlesV1() {
+    std::cout << "[TEST] Running testWindowsAssociationsAndOpenSubtitlesV1..." << std::endl;
+
+    // 1. Validate AssociationManager formats
+    const auto& formats = rx::AssociationManager::getSupportedFormats();
+    assert(formats.size() == 20);
+
+    std::vector<std::wstring> expectedVideo = {
+        L".mkv", L".mp4", L".avi", L".mov", L".wmv", L".webm",
+        L".m4v", L".mpeg", L".mpg", L".ts", L".m2ts", L".flv"
+    };
+    std::vector<std::wstring> expectedAudio = {
+        L".mp3", L".wav", L".flac", L".aac", L".m4a", L".ogg", L".opus", L".wma"
+    };
+
+    int videoCount = 0;
+    int audioCount = 0;
+    for (const auto& fmt : formats) {
+        if (fmt.isVideo) {
+            videoCount++;
+            bool found = false;
+            for (const auto& ev : expectedVideo) {
+                if (ev == fmt.ext) { found = true; break; }
+            }
+            assert(found);
+            (void)found;
+        } else {
+            audioCount++;
+            bool found = false;
+            for (const auto& ea : expectedAudio) {
+                if (ea == fmt.ext) { found = true; break; }
+            }
+            assert(found);
+            (void)found;
+        }
+    }
+    assert(videoCount == 12);
+    assert(audioCount == 8);
+    (void)videoCount;
+    (void)audioCount;
+
+    // 2. Validate OpenSubtitlesClient API key validation
+    assert(rx::subtitles::OpenSubtitlesClient::isValidApiKey("1234567890abcdef1234567890"));
+    assert(rx::subtitles::OpenSubtitlesClient::isValidApiKey("abc-DEF_123456789"));
+    assert(!rx::subtitles::OpenSubtitlesClient::isValidApiKey("short_key"));
+    assert(!rx::subtitles::OpenSubtitlesClient::isValidApiKey("invalid key with spaces!!"));
+    assert(!rx::subtitles::OpenSubtitlesClient::isValidApiKey(""));
+
+    // 3. Validate OpenSubtitles settings persistence with username and userToken
+    auto& s = rx::Settings::instance();
+    s.opensubtitles.username = "test_user_rx";
+    s.opensubtitles.userToken = "rx_jwt_bearer_token_xyz987";
+    s.save();
+
+    s.opensubtitles.username.clear();
+    s.opensubtitles.userToken.clear();
+    s.load();
+
+    assert(s.opensubtitles.username == "test_user_rx");
+    assert(s.opensubtitles.userToken == "rx_jwt_bearer_token_xyz987");
+
+    std::cout << "  -> testWindowsAssociationsAndOpenSubtitlesV1 PASSED!" << std::endl;
+}
+
 int main() {
     std::cout << "========================================" << std::endl;
     std::cout << "RX Media Player Automated Test Runner" << std::endl;
@@ -565,6 +630,7 @@ int main() {
     testMediaDatabase();
     testShortcuts();
     testAudioTracksAndOpenSubtitles();
+    testWindowsAssociationsAndOpenSubtitlesV1();
 
     std::cout << "========================================" << std::endl;
     std::cout << "ALL TESTS PASSED SUCCESSFULLY!" << std::endl;

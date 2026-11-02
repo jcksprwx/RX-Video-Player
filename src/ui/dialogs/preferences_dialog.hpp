@@ -36,6 +36,13 @@ private:
     void onClearShortcut();
     void onResetShortcuts();
 
+    // Windows integration & OpenSubtitles methods
+    void onRegisterAssociations();
+    void onTestOpenSubtitlesConnection();
+    void onOpenSubtitlesLogin();
+    void onOpenSubtitlesLogout();
+    void updateOsStatusDisplay();
+
     HWND m_hwnd = nullptr;
     HWND m_parent = nullptr;
     HWND m_listCategories = nullptr;
@@ -49,6 +56,26 @@ private:
     HWND m_chkHwdec = nullptr;
     HWND m_chkWASAPIExclusive = nullptr;
     HWND m_chkAutoLoadSubs = nullptr;
+
+    // File associations controls (Category 0: General)
+    HWND m_btnRegisterAssoc = nullptr;
+    HWND m_lblAssocStatus = nullptr;
+
+    // OpenSubtitles API controls (Category 5: OpenSubtitles)
+    HWND m_lblOsApiKey = nullptr;
+    HWND m_editOsApiKey = nullptr;
+    HWND m_lblOsUsername = nullptr;
+    HWND m_editOsUsername = nullptr;
+    HWND m_lblOsPassword = nullptr;
+    HWND m_editOsPassword = nullptr;
+    HWND m_btnOsTest = nullptr;
+    HWND m_btnOsLogin = nullptr;
+    HWND m_btnOsLogout = nullptr;
+    HWND m_lblOsStatus = nullptr;
+    HWND m_chkOsAutoSearch = nullptr;
+    HWND m_chkOsAutoApply = nullptr;
+    HWND m_lblOsLangs = nullptr;
+    HWND m_editOsLangs = nullptr;
 
     // Shortcuts Controls
     HWND m_lblSearch = nullptr;

@@ -448,6 +448,11 @@ void RXMainWindow::openFile(const std::string& path) {
     m_engine.loadFile(path, true);
 }
 
+void RXMainWindow::addToPlaylist(const std::string& path) {
+    m_playlistMgr.addItem(path);
+    if (m_playlistPanel) m_playlistPanel->refresh();
+}
+
 void RXMainWindow::setupChildControls() {
     // Left playback controls (height = 32px, y = 8px)
     m_btnPlay.create(m_controlBarHwnd, 8, 8, 34, 32, L"►", IDC_MAIN_PLAY, L"Play / Pause (Space)");
@@ -1032,7 +1037,7 @@ void RXMainWindow::showShortcutHelpDialog() {
 
 void RXMainWindow::showAboutDialog() {
     std::wstring msg =
-        L"RX Media Player v2.4.1 (Windows 64-bit)\n\n"
+        L"RX Media Player v2.5.0 (Windows 64-bit)\n\n"
         L"Author & Lead Architect: Rituraj\n"
         L"Repository: https://github.com/jcksprwx/RX-Video-Player\n\n"
         L"Architecture & Subsystems:\n"
@@ -2344,6 +2349,36 @@ LRESULT CALLBACK RXMainWindow::mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, L
                     if (pThis->m_videoHwnd) InvalidateRect(pThis->m_videoHwnd, nullptr, FALSE);
                 }
                 return 0;
+            }
+            case WM_COPYDATA: {
+                auto* cds = reinterpret_cast<COPYDATASTRUCT*>(lParam);
+                if (cds && cds->dwData == 0x5258504C && cds->lpData) {
+                    const wchar_t* pData = reinterpret_cast<const wchar_t*>(cds->lpData);
+                    std::wstring rawStr(pData);
+                    std::wstringstream ss(rawStr);
+                    std::wstring line;
+                    bool isFirst = true;
+                    while (std::getline(ss, line)) {
+                        if (line.empty()) continue;
+                        std::string pathUtf8 = rx::utils::wideToUtf8(line);
+                        std::error_code ec;
+                        if (std::filesystem::exists(std::filesystem::path(line), ec)) {
+                            if (isFirst) {
+                                pThis->openFile(pathUtf8);
+                                isFirst = false;
+                            } else {
+                                pThis->m_playlistMgr.addItem(pathUtf8);
+                                if (pThis->m_playlistPanel) pThis->m_playlistPanel->refresh();
+                            }
+                        } else {
+                            pThis->showOsdMessage(L"File not found: " + line);
+                        }
+                    }
+                    if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
+                    SetForegroundWindow(hwnd);
+                    return TRUE;
+                }
+                break;
             }
             case WM_DESTROY: {
                 auto& s = Settings::instance();

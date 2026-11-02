@@ -8,6 +8,7 @@ namespace rx::subtitles {
 
 struct ParsedMediaInfo {
     std::string cleanTitle;
+    std::string title; // Alias/compatibility
     int year = 0;
     int season = 0;
     int episode = 0;
@@ -28,6 +29,16 @@ struct SubtitleSearchResult {
     bool hd = false;
 };
 
+struct UserAccountInfo {
+    bool isLoggedIn = false;
+    std::string username;
+    std::string token;
+    int remainingDownloads = 0;
+    int allowedDownloads = 0;
+    bool isVip = false;
+    std::string statusMessage;
+};
+
 class OpenSubtitlesClient {
 public:
     // Calculates the official 64-bit OpenSubtitles MovieHash
@@ -36,6 +47,33 @@ public:
 
     // Extracts clean title, year, season, and episode from a video filename
     static ParsedMediaInfo parseFilename(const std::string& filePath);
+
+    // Checks if an API key looks valid (alphanumeric, at least 16 chars)
+    static bool isValidApiKey(const std::string& key);
+
+    // Tests connectivity to OpenSubtitles REST API v1
+    static bool testConnection(
+        const std::string& apiKey,
+        const std::string& userToken = "",
+        UserAccountInfo* outInfo = nullptr,
+        std::string* outError = nullptr
+    );
+
+    // Authenticates user with username & password to obtain JWT token
+    static bool login(
+        const std::string& apiKey,
+        const std::string& username,
+        const std::string& password,
+        UserAccountInfo* outInfo,
+        std::string* outError = nullptr
+    );
+
+    // Invalidate user session
+    static bool logout(
+        const std::string& apiKey,
+        const std::string& userToken,
+        std::string* outError = nullptr
+    );
 
     // Performs online search via official OpenSubtitles.com REST API v1
     static std::vector<SubtitleSearchResult> searchSubtitles(
@@ -46,6 +84,7 @@ public:
         int season = 0,
         int episode = 0,
         int year = 0,
+        const std::string& userToken = "",
         std::string* outError = nullptr
     );
 
@@ -54,11 +93,9 @@ public:
         const std::string& apiKey,
         int fileId,
         const std::string& destFilePath,
+        const std::string& userToken = "",
         std::string* outError = nullptr
     );
-
-    // Checks if an API key looks valid (32 characters alphanumeric)
-    static bool isValidApiKey(const std::string& key);
 };
 
 } // namespace rx::subtitles
